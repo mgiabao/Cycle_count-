@@ -2,7 +2,11 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cycle Count">
+<meta name="theme-color" content="#2563eb">
 <title>Cycle Count — Mini WMS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -133,6 +137,76 @@ tbody tr.deleted-row{opacity:.35;pointer-events:none}
 /* EXPIRY colors */
 .exp-red{color:var(--danger);font-weight:600}
 .exp-orange{color:var(--warning);font-weight:500}
+/* ── MOBILE (iPhone) ───────────────────────────────── */
+@media(max-width:640px){
+  /* Auth */
+  .auth-card{width:92vw;padding:28px 20px}
+
+  /* Navbar */
+  .navbar{padding:0 14px;height:50px}
+  .navbar-brand{font-size:14px}
+  .user-badge{display:none}
+  .role-badge{font-size:10px;padding:2px 8px}
+
+  /* Main content */
+  .main{padding:14px}
+
+  /* Page header — stack vertically */
+  .page-header{flex-direction:column;gap:8px;margin-bottom:14px}
+  .page-title{font-size:17px}
+  .page-header>div:last-child{width:100%}
+  .page-header .btn{width:100%;justify-content:center}
+
+  /* Stats — 2x2 grid on mobile */
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+  .stat-val{font-size:20px}
+
+  /* Filters — stack */
+  .filters{flex-direction:column;gap:8px;margin-bottom:14px}
+  .filters select{width:100%}
+
+  /* Session cards — tighter */
+  .session-card{padding:12px 14px;flex-wrap:wrap;gap:10px}
+  .session-card>div:last-child{width:100%;display:flex;justify-content:flex-end}
+
+  /* Result info bar — wrap tighter */
+  #result-info{gap:10px;padding:10px 12px;font-size:12px}
+
+  /* Action bar */
+  .action-bar{padding:10px 14px;flex-direction:column;gap:8px}
+  .action-bar>div:first-child{font-size:12px;text-align:center}
+  .action-bar>div:last-child{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .action-bar .btn{justify-content:center}
+
+  /* Buttons in result page */
+  #page-result .page-header>div:last-child{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  #page-result .page-header .btn{justify-content:center}
+
+  /* Table — horizontal scroll, bigger touch targets */
+  .table-wrap{-webkit-overflow-scrolling:touch}
+  thead th{padding:8px 8px;font-size:10px}
+  tbody td{padding:8px 8px;font-size:12px}
+  .count-input{width:90px;font-size:13px;padding:6px 8px}
+
+  /* Progress card */
+  .card.mb-4{padding:12px 14px}
+
+  /* Search bar */
+  #count-search{font-size:15px} /* prevent iOS zoom on focus */
+  input,select,textarea{font-size:15px} /* prevent iOS auto-zoom */
+
+  /* Modal */
+  .modal{width:95vw;padding:20px 16px;max-height:90vh;overflow-y:auto}
+  .modal-footer{flex-direction:column-reverse}
+  .modal-footer .btn{width:100%;justify-content:center}
+
+  /* Card headers */
+  .card-header{padding:10px 14px;flex-wrap:wrap;gap:6px}
+  .card-body{padding:14px}
+
+  /* Variance badges wrap on small screen */
+  .card-header>div{display:flex;gap:6px;flex-wrap:wrap}
+}
 /* Print */
 @media print{
   .navbar,.action-bar,.btn,.no-print{display:none!important}
