@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cycle Count — Mini WMS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--success:#16a34a;--danger:#dc2626;--warning:#d97706;--bg:#f8fafc;--surface:#fff;--border:#e2e8f0;--text:#1e293b;--text-2:#64748b;--text-3:#94a3b8;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+/* AUTH */
+#auth-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1e3a5f,#2563eb)}
+.auth-card{background:#fff;border-radius:16px;padding:40px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo h1{font-size:22px;font-weight:700;margin-top:8px}
+.auth-logo p{font-size:12px;color:var(--text-2);margin-top:4px}
+/* NAV */
+.navbar{background:#fff;border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.navbar-brand{font-weight:700;font-size:16px;color:var(--primary);display:flex;align-items:center;gap:8px}
+.navbar-right{display:flex;align-items:center;gap:10px}
+.user-badge{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-2)}
+.role-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;text-transform:uppercase}
+.role-warehouse{background:#dbeafe;color:#1e40af}
+.role-inventory{background:#dcfce7;color:#15803d}
+.role-manager{background:#fef3c7;color:#92400e}
+/* MAIN */
+.main{max-width:1150px;margin:0 auto;padding:24px}
+.page{display:none}.page.active{display:block}
+/* FORM */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text);background:#fff;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover:not(:disabled){background:var(--primary-dark)}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover:not(:disabled){background:#15803d}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover:not(:disabled){background:var(--bg)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover:not(:disabled){background:#b91c1c}
+.btn-ghost{background:transparent;color:var(--text-2);border:none;padding:4px 8px}.btn-ghost:hover{background:var(--bg);color:var(--danger)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-lg{padding:11px 22px;font-size:15px}
+.w-full{width:100%}
+/* CARDS */
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-body{padding:20px}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-header h3{font-size:14px;font-weight:600}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px}
+.badge-progress{background:#fef3c7;color:#92400e}
+.badge-completed{background:#dcfce7;color:#15803d}
+.badge-dep{background:#dbeafe;color:#1e40af}
+.badge-pta{background:#f3e8ff;color:#6b21a8}
+.badge-efl{background:#fce7f3;color:#9d174d}
+/* TABLE */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--bg);padding:9px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#f8fafc}
+tbody tr.deleted-row{opacity:.35;pointer-events:none}
+/* SESSION CARDS */
+.session-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;cursor:default;transition:border-color .15s}
+.session-card:hover{border-color:#93c5fd}
+/* PROGRESS */
+.progress-bar-bg{background:var(--border);border-radius:99px;height:5px}
+.progress-bar-fill{background:var(--primary);border-radius:99px;height:5px;transition:width .3s}
+/* INPUTS */
+.count-input{width:110px;text-align:right;font-weight:600;font-family:monospace;font-size:13px}
+.count-input.filled{border-color:var(--success);background:#f0fdf4}
+.variance-pos{color:var(--success);font-weight:700}
+.variance-neg{color:var(--danger);font-weight:700}
+.variance-zero{color:var(--text-3)}
+/* SEARCH */
+.search-wrap{position:relative}
+.search-wrap input{padding-left:36px}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none}
+/* ALERTS */
+.alert{padding:12px 16px;border-radius:var(--radius);margin-bottom:16px;font-size:13px;line-height:1.5}
+.alert-info{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
+.alert-warning{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+.alert-success{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+.alert-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:28px;width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:16px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+/* STAT CARDS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+.stat-val{font-size:26px;font-weight:700}
+.stat-label{font-size:11px;color:var(--text-2);margin-top:3px}
+/* PAGE HEADER */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:12px}
+.page-title{font-size:20px;font-weight:700}
+.page-title small{font-size:13px;font-weight:400;color:var(--text-2);margin-left:6px}
+/* FILTERS */
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filters select{width:auto;min-width:130px}
+/* ACTION BAR */
+.action-bar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:50;box-shadow:0 -2px 8px rgba(0,0,0,.06)}
+/* MISC */
+.empty{text-align:center;padding:60px 20px;color:var(--text-3)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.loading{text-align:center;padding:40px;color:var(--text-3);font-size:13px}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.font-mono{font-family:monospace}
+.text-sm{font-size:12px}
+.text-muted{color:var(--text-2)}
+.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
+.mb-3{margin-bottom:12px}.mb-4{margin-bottom:16px}
+.flex{display:flex}.gap-2{gap:8px}.gap-3{gap:12px}
+.items-center{align-items:center}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+/* IMPORT ZONE */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;transition:all .15s;cursor:pointer}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--primary);background:#eff6ff}
+.drop-zone-icon{font-size:36px;margin-bottom:8px}
+.drop-zone p{font-size:14px;color:var(--text-2)}
+.drop-zone small{font-size:12px;color:var(--text-3)}
+/* EXPIRY colors */
+.exp-red{color:var(--danger);font-weight:600}
+.exp-orange{color:var(--warning);font-weight:500}
+/* Print */
+@media print{.navbar,.action-bar,.btn,.no-print{display:none!important}body{background:#fff}.card{box-shadow:none}table{font-size:11px}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ===== AUTH ===== -->
+<div id="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div style="font-size:44px">🏭</div>
+      <h1>Mini WMS</h1>
+      <p>Cycle Count — Kiểm kê hóa chất</p>
+    </div>
+    <div id="auth-error" class="alert alert-danger" style="display:none"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="email@company.com" />
+    </div>
+    <div class="form-group">
+      <label>Mật khẩu / Password</label>
+      <input type="password" id="password" placeholder="••••••••" />
+    </div>
+    <button class="btn btn-primary w-full btn-lg" onclick="login()" id="login-btn">Đăng nhập / Sign In</button>
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-3)">Mini WMS v1.0</p>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="main-app" style="display:none">
+  <nav class="navbar">
+    <div class="navbar-brand">🧪 Cycle Count</div>
+    <div class="navbar-right">
+      <span id="nav-username" class="user-badge"></span>
+      <span id="nav-role" class="role-badge"></span>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Đăng xuất</button>
+    </div>
+  </nav>
+
+  <!-- PAGE: LIST -->
+  <div id="page-list" class="page active">
+    <div class="main">
+      <div class="page-header">
+        <div class="page-title">Kiểm kê hóa chất <small>Chemical Cycle Count</small></div>
+        <button class="btn btn-primary no-print" onclick="showNewModal()" id="btn-new-count">+ Tạo kiểm kê mới</button>
+      </div>
+      <div class="filters">
+        <select id="filter-wh" onchange="loadSessions()">
+          <option value="">Tất cả kho</option>
+          <option value="DEP">DEP</option>
+          <option value="PTA">PTA</option>
+          <option value="EFL">EFL</option>
+        </select>
+        <select id="filter-status" onchange="loadSessions()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="in_progress">Đang thực hiện</option>
+          <option value="completed">Đã hoàn tất</option>
+        </select>
+      </div>
+      <div id="sessions-list"><div class="loading"><span class="spinner"></span>Đang tải...</div></div>
+    </div>
+  </div>
+
+  <!-- PAGE: COUNT -->
+  <div id="page-count" class="page">
+    <div class="main">
+      <div class="page-header">
+        <div>
+          <button class="btn btn-outline btn-sm no-print mb-3" onclick="showPage('list')">← Quay lại</button>
+          <div class="page-title" id="count-title">Thực hiện kiểm kê</div>
+          <div style="margin-top:4px;font-size:13px;color:var(--text-2)" id="count-subtitle"></div>
+        </div>
+        <div id="count-header-right" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- Progress -->
+      <div class="card mb-4" style="padding:14px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:500">Tiến độ / Progress</span>
+          <span id="count-progress-text" style="font-size:13px;color:var(--text-2)"></span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="count-progress-bar" style="width:0%"></div></div>
+      </div>
+
+      <!-- Search + info -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center" class="no-print">
+        <div class="search-wrap" style="flex:1">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="count-search" placeholder="Tìm theo mã hoặc tên hóa chất..." oninput="filterCountLines()" />
+        </div>
+        <div style="font-size:12px;color:var(--text-2)" id="count-filter-info"></div>
+      </div>
+
+      <div class="table-wrap" id="count-table-wrap">
+        <div class="loading"><span class="spinner"></span>Đang tải...</div>
+      </div>
+    </div>
+    <div class="action-bar no-print">
+      <div style="font-size:13px;color:var(--text-2)" id="count-action-info"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" onclick="saveDraft()" id="btn-save-draft">💾 Lưu nháp</button>
+        <button class="btn btn-success" onclick="confirmComplete()" id="btn-complete" disabled>✅ Hoàn tất kiểm kê</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: RESULT -->
+  <div id="page-result" class="page">
+    <div class="main">
+      <div class="page-header">
+        <div>
+          <button class="btn btn-outline btn-sm no-print mb-3" onclick="showPage('list')">← Quay lại</button>
+          <div class="page-title">Kết quả kiểm kê <small>Count Result</small></div>
+        </div>
+        <div style="display:flex;gap:8px" class="no-print">
+          <button class="btn btn-outline" onclick="exportExcel()">📊 Xuất Excel</button>
+          <button class="btn btn-outline" onclick="window.print()">🖨️ In PDF</button>
+        </div>
+      </div>
+      <div id="result-info" class="card card-body mb-4" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;padding:14px 20px"></div>
+      <div class="stats-row" id="result-stats"></div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3>⚠️ Hàng có chênh lệch / Variance Items</h3>
+          <span id="variance-count" class="badge badge-progress"></span>
+        </div>
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table><thead><tr>
+            <th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th>
+            <th class="text-right">Tồn HT (kg)</th>
+            <th class="text-right">Thực tế (kg)</th>
+            <th class="text-right">Chênh lệch</th>
+            <th>Ghi chú</th>
+          </tr></thead>
+          <tbody id="result-variance-body"></tbody></table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>✅ Hàng khớp / Matched Items</h3>
+          <span id="matched-count" class="badge badge-completed"></span>
+        </div>
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table><thead><tr>
+            <th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th>
+            <th class="text-right">Tồn HT (kg)</th>
+            <th class="text-right">Thực tế (kg)</th>
+          </tr></thead>
+          <tbody id="result-match-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-app -->
+</div><!-- /app -->
+
+<!-- MODAL: New Count -->
+<div class="modal-overlay" id="modal-new">
+  <div class="modal">
+    <h3>🆕 Tạo kiểm kê mới</h3>
+    <div id="modal-new-error" class="alert alert-danger" style="display:none"></div>
+    <div id="modal-new-warning" class="alert alert-warning" style="display:none">
+      ⚠️ Kho này đang có kiểm kê chưa hoàn tất. Vui lòng hoàn tất trước khi tạo mới.
+    </div>
+
+    <div class="form-group">
+      <label>Kho / Warehouse</label>
+      <select id="new-wh" onchange="checkExistingSession()">
+        <option value="DEP">DEP — Kho nguyên liệu</option>
+        <option value="PTA">PTA — Khu sản xuất</option>
+        <option value="EFL">EFL — Xử lý nước thải</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Ngày kiểm kê</label>
+      <input type="date" id="new-date" />
+    </div>
+    <div class="form-group">
+      <label>Ghi chú (tùy chọn)</label>
+      <textarea id="new-note" rows="2" placeholder="Ví dụ: Kiểm kê tuần 24..."></textarea>
+    </div>
+
+    <div class="alert alert-info">
+      📁 Bạn có thể <strong>import file XLS từ Oracle</strong> để lấy tồn kho thật, hoặc dùng tồn kho đã có trong hệ thống.
+    </div>
+
+    <div class="form-group mt-3">
+      <label>Import file Oracle XLS (tùy chọn)</label>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('xls-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div class="drop-zone-icon">📂</div>
+        <p>Kéo thả hoặc bấm để chọn file XLS</p>
+        <small>File export từ Oracle — sẽ tự động lọc theo kho đã chọn</small>
+      </div>
+      <input type="file" id="xls-input" accept=".xls,.xlsx" style="display:none" onchange="handleFileSelect(event)" />
+      <div id="file-preview" style="margin-top:10px"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-new')">Hủy</button>
+      <button class="btn btn-primary" onclick="createSession()" id="btn-create">🚀 Bắt đầu kiểm kê</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Confirm Complete -->
+<div class="modal-overlay" id="modal-complete">
+  <div class="modal">
+    <h3>✅ Xác nhận hoàn tất?</h3>
+    <p style="color:var(--text-2);font-size:13px;line-height:1.7">
+      Sau khi xác nhận, session sẽ được <strong>khóa lại</strong> và không thể chỉnh sửa.<br>
+      Tồn kho sẽ <strong>không thay đổi</strong> — chỉ ghi nhận chênh lệch để báo cáo.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-complete')">Quay lại</button>
+      <button class="btn btn-success" onclick="completeSession()">✅ Xác nhận hoàn tất</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CONFIG
+// =============================================
+const SUPABASE_URL = 'https://dyrarmbydupfjtlvsswq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_JyD-UH2lHwp_wunzFpxQvg_eidAt3uu';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null, currentProfile = null, currentSession = null;
+let allCountLines = [], countLines = [];
+let parsedXlsData = null; // imported oracle data
+
+// =============================================
+// AUTH
+// =============================================
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('auth-error');
+  if (!email || !password) { showErr(err, 'Vui lòng nhập đầy đủ thông tin'); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Đang đăng nhập...';
+  err.style.display = 'none';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { showErr(err, 'Sai email hoặc mật khẩu'); btn.disabled = false; btn.innerHTML = 'Đăng nhập / Sign In'; return; }
+  await initApp(data.user);
+}
+
+async function initApp(user) {
+  currentUser = user;
+  const { data: profile } = await sb.from('user_profiles').select('*').eq('id', user.id).single();
+  currentProfile = profile || { id: user.id, full_name: user.email.split('@')[0], role: 'manager' };
+  if (!profile) await sb.from('user_profiles').insert({ id: user.id, full_name: currentProfile.full_name, role: 'manager' });
+
+  document.getElementById('nav-username').textContent = currentProfile.full_name;
+  const roleEl = document.getElementById('nav-role');
+  roleEl.textContent = { warehouse:'Warehouse', inventory:'Inventory', manager:'Manager' }[currentProfile.role] || currentProfile.role;
+  roleEl.className = `role-badge role-${currentProfile.role}`;
+
+  // Restrict warehouse filter by role
+  const whFilter = document.getElementById('filter-wh');
+  if (currentProfile.role === 'warehouse') { whFilter.value = 'DEP'; whFilter.disabled = true; }
+  else if (currentProfile.role === 'inventory') { whFilter.value = 'PTA'; whFilter.disabled = true; }
+  if (currentProfile.role === 'manager') document.getElementById('btn-new-count').style.display = 'none';
+
+  document.getElementById('auth-page').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  await loadSessions();
+}
+
+async function logout() { await sb.auth.signOut(); location.reload(); }
+
+window.addEventListener('load', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await initApp(session.user);
+});
+
+// =============================================
+// SESSIONS LIST
+// =============================================
+async function loadSessions() {
+  const el = document.getElementById('sessions-list');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Đang tải...</div>';
+  let q = sb.from('cycle_count_sessions').select('*').order('created_at', { ascending: false });
+  const wh = document.getElementById('filter-wh').value;
+  const st = document.getElementById('filter-status').value;
+  if (currentProfile.role === 'warehouse') q = q.eq('warehouse_code', 'DEP');
+  else if (currentProfile.role === 'inventory') q = q.eq('warehouse_code', 'PTA');
+  else if (wh) q = q.eq('warehouse_code', wh);
+  if (st) q = q.eq('status', st);
+  const { data: sessions, error } = await q;
+  if (error) { el.innerHTML = `<div class="alert alert-danger">Lỗi: ${error.message}</div>`; return; }
+  if (!sessions?.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>Chưa có kiểm kê nào</p></div>'; return; }
+
+  const ids = sessions.map(s => s.id);
+  const { data: lines } = await sb.from('cycle_count_lines').select('session_id,qty_counted,is_deleted').in('session_id', ids);
+  const cm = {};
+  if (lines) lines.forEach(l => {
+    if (!cm[l.session_id]) cm[l.session_id] = { total: 0, done: 0 };
+    if (!l.is_deleted) { cm[l.session_id].total++; if (l.qty_counted !== null) cm[l.session_id].done++; }
+  });
+
+  const whColor = { DEP: 'badge-dep', PTA: 'badge-pta', EFL: 'badge-efl' };
+  el.innerHTML = sessions.map(s => {
+    const c = cm[s.id] || { total: 0, done: 0 };
+    const pct = c.total > 0 ? Math.round(c.done / c.total * 100) : 0;
+    const done = s.status === 'completed';
+    return `<div class="session-card">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-weight:700;font-size:15px">${s.warehouse_code}</span>
+          <span class="badge ${whColor[s.warehouse_code]||'badge-dep'}">${s.warehouse_code}</span>
+          <span class="badge ${done?'badge-completed':'badge-progress'}">${done?'✅ Hoàn tất':'🔄 Đang thực hiện'}</span>
+          <span style="font-size:13px;color:var(--text-2)">${formatDate(s.count_date)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-3)">Bởi ${s.created_by_name||'N/A'} · ${formatDateTime(s.created_at)}</div>
+        ${s.note?`<div style="font-size:12px;color:var(--text-2);margin-top:4px">📝 ${s.note}</div>`:''}
+        ${!done?`<div style="margin-top:8px"><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div><div style="font-size:12px;color:var(--text-2);margin-top:4px">${c.done}/${c.total} đã nhập (${pct}%)</div></div>`
+        :`<div style="font-size:12px;color:var(--text-3);margin-top:4px">📦 ${c.total} dòng · ${c.done} đã đếm</div>`}
+      </div>
+      <div style="display:flex;gap:8px;margin-left:16px;flex-shrink:0;align-items:center">
+        ${done
+          ? `<button class="btn btn-outline btn-sm" onclick="loadResult('${s.id}')">📊 Xem kết quả</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="loadCountPage('${s.id}')">▶️ Tiếp tục đếm</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="deleteSession('${s.id}', '${s.warehouse_code}', '${formatDate(s.count_date)}')" title="Xóa kiểm kê này" style="color:var(--danger);font-size:16px;padding:4px 8px">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// =============================================
+// DELETE SESSION
+// =============================================
+async function deleteSession(id, wh, date) {
+  if (!confirm(`Xóa kiểm kê kho ${wh} ngày ${date}?\n\nToàn bộ dữ liệu đã nhập sẽ bị xóa vĩnh viễn.`)) return;
+  // Delete lines first (FK constraint)
+  const { error: lErr } = await sb.from('cycle_count_lines').delete().eq('session_id', id);
+  if (lErr) { alert('Lỗi xóa dòng: ' + lErr.message); return; }
+  const { error: sErr } = await sb.from('cycle_count_sessions').delete().eq('id', id);
+  if (sErr) { alert('Lỗi xóa session: ' + sErr.message); return; }
+  await loadSessions();
+}
+
+// =============================================
+// NEW SESSION MODAL
+// =============================================
+async function showNewModal() {
+  const role = currentProfile.role;
+  const whEl = document.getElementById('new-wh');
+  if (role === 'warehouse') { whEl.value = 'DEP'; whEl.disabled = true; }
+  else if (role === 'inventory') { whEl.value = 'PTA'; whEl.disabled = true; }
+  else { whEl.disabled = false; }
+  document.getElementById('new-date').value = today();
+  document.getElementById('new-note').value = '';
+  document.getElementById('modal-new-error').style.display = 'none';
+  document.getElementById('modal-new-warning').style.display = 'none';
+  document.getElementById('btn-create').disabled = false;
+  document.getElementById('file-preview').innerHTML = '';
+  document.getElementById('xls-input').value = '';
+  parsedXlsData = null;
+  await checkExistingSession();
+  openModal('modal-new');
+}
+
+async function checkExistingSession() {
+  const wh = document.getElementById('new-wh').value;
+  const { data } = await sb.from('cycle_count_sessions').select('id').eq('warehouse_code', wh).eq('status', 'in_progress').limit(1);
+  const hasExisting = data && data.length > 0;
+  document.getElementById('modal-new-warning').style.display = hasExisting ? 'block' : 'none';
+  document.getElementById('btn-create').disabled = hasExisting;
+}
+
+// =============================================
+// XLS IMPORT
+// =============================================
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('dragover'); }
+function onDragLeave(e) { document.getElementById('drop-zone').classList.remove('dragover'); }
+function onDrop(e) { e.preventDefault(); document.getElementById('drop-zone').classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) processXls(f); }
+function handleFileSelect(e) { const f = e.target.files[0]; if (f) processXls(f); }
+
+function processXls(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (raw.length < 2) { showFileError('File không có dữ liệu'); return; }
+
+      const wh = document.getElementById('new-wh').value;
+
+      // Parse rows: skip header (row 0)
+      const grouped = {};
+      for (let i = 1; i < raw.length; i++) {
+        const row = raw[i];
+        const itemCode = String(row[0] || '').trim();
+        const desc = String(row[1] || '').trim();
+        const location = String(row[5] || '').trim();
+        const qty = parseFloat(row[6]);
+        if (!itemCode || !desc) continue;
+        if (!itemCode.match(/^(QP|QM)/)) continue; // only QP/QM
+        if (isNaN(qty) || qty <= 0) continue; // skip negative/zero
+        // Parse warehouse from location
+        const whMatch = location.match(/^(DEP|PTA|EFL)/);
+        if (!whMatch) continue;
+        const rowWh = whMatch[1];
+        if (rowWh !== wh) continue; // filter by selected warehouse
+
+        if (!grouped[itemCode]) grouped[itemCode] = { item_code: itemCode, item_name: desc, qty: 0 };
+        grouped[itemCode].qty += qty;
+      }
+
+      parsedXlsData = Object.values(grouped).sort((a,b) => a.item_code.localeCompare(b.item_code));
+      const count = parsedXlsData.length;
+      const totalKg = parsedXlsData.reduce((s,r) => s + r.qty, 0);
+
+      document.getElementById('file-preview').innerHTML = `
+        <div class="alert alert-success">
+          ✅ Đọc thành công từ <strong>${file.name}</strong><br>
+          Kho <strong>${wh}</strong>: <strong>${count} hóa chất</strong>, tổng <strong>${fmt(totalKg)} kg</strong>
+        </div>
+        <div class="table-wrap" style="max-height:180px;overflow-y:auto">
+          <table><thead><tr><th>Mã HH</th><th>Tên</th><th class="text-right">Tồn (kg)</th></tr></thead>
+          <tbody>${parsedXlsData.map(r=>`<tr><td class="font-mono text-sm">${r.item_code}</td><td>${r.item_name}</td><td class="text-right font-mono">${fmt(r.qty)}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+    } catch(err) { showFileError('Lỗi đọc file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showFileError(msg) {
+  document.getElementById('file-preview').innerHTML = `<div class="alert alert-danger">${msg}</div>`;
+  parsedXlsData = null;
+}
+
+// =============================================
+// CREATE SESSION
+// =============================================
+async function createSession() {
+  const wh = document.getElementById('new-wh').value;
+  const date = document.getElementById('new-date').value;
+  const note = document.getElementById('new-note').value.trim();
+  const errEl = document.getElementById('modal-new-error');
+  const btn = document.getElementById('btn-create');
+  if (!date) { showErr(errEl, 'Vui lòng chọn ngày kiểm kê'); return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Đang tạo...';
+
+  const { data: session, error: sErr } = await sb.from('cycle_count_sessions').insert({
+    warehouse_code: wh, count_date: date,
+    note: note || null, created_by: currentUser.id,
+    created_by_name: currentProfile.full_name || currentUser.email
+  }).select().single();
+
+  if (sErr) { showErr(errEl, sErr.message); btn.disabled = false; btn.innerHTML = '🚀 Bắt đầu kiểm kê'; return; }
+
+  // Build lines from XLS or demo data
+  let lines = [];
+  if (parsedXlsData && parsedXlsData.length > 0) {
+    lines = parsedXlsData.map(r => ({
+      session_id: session.id,
+      item_code: r.item_code,
+      item_name: r.item_name,
+      warehouse_code: wh,
+      qty_system: Math.round(r.qty * 1000) / 1000,
+      qty_counted: null,
+      note: null,
+      is_deleted: false,
+      lot_number: null
+    }));
+  } else {
+    lines = getDemoLines(session.id, wh);
+  }
+
+  if (lines.length > 0) {
+    const { error: lErr } = await sb.from('cycle_count_lines').insert(lines);
+    if (lErr) { showErr(errEl, 'Lỗi tạo dòng: ' + lErr.message); btn.disabled = false; btn.innerHTML = '🚀 Bắt đầu kiểm kê'; return; }
+  }
+
+  closeModal('modal-new');
+  await loadCountPage(session.id);
+}
+
+function getDemoLines(sessionId, wh) {
+  const data = {
+    DEP:[
+      {c:'QM04291',n:'SADEPE PE',q:680},{c:'QM04294',n:'SADEDULLER DW',q:500},
+      {c:'QM04461',n:'SADE WHITE 2059',q:1120},{c:'QM05350',n:'SADELACQUER CWB',q:1020},
+      {c:'QM06517',n:'SADE VM',q:1300},{c:'QM06827',n:'SADE WHITE 443',q:1280},
+      {c:'QM07694',n:'SADESIL PM',q:340},{c:'QP02050',n:'AMMONIA WATER 24%',q:500},
+      {c:'QP02075',n:'CALCIUM HYDROXIDE',q:80},{c:'QP02289',n:'SODIUM HYPOCHLORITE 100 g/l.',q:2000},
+      {c:'QP03290',n:'TITEKOTE RI-115',q:3000},{c:'QP03382',n:'CORIAL BINDER IF',q:360},
+      {c:'QP05490',n:'DENSOTAN A',q:280},{c:'QP05767',n:'CAUSTIC SODA 32% SOLUTION',q:3000},
+      {c:'QP05883',n:'PM',q:190},{c:'QP06007',n:'PRIMAL FGR EMULSION',q:160},
+      {c:'QP06222',n:'ALUMINIUM SULPHATE LIQ 8%',q:1300},{c:'QP06444',n:'PRIMAL SCL-371 EMULSION',q:320},
+      {c:'QP06659',n:'RODA PURE LUSTER 1430',q:120},{c:'QP06933',n:'RODA PURE PREBASE 772',q:120},
+      {c:'QP07006',n:'MELIO PROMUL CU-47.A LIQ',q:120},{c:'QP07205',n:'RODA CRYL 5416',q:1000},
+      {c:'QP07806',n:'EUDERM X-GRADE MP 2/N',q:1560},{c:'QP08234',n:'UNIRES RU-13-134',q:1100},
+      {c:'QP08303',n:'EUDERM X-GRADE CGS 2',q:1380},{c:'QP08324',n:'UNIRES RU-76-125',q:440},
+      {c:'QP08326',n:'TITEKOTE RI-78-060',q:240},{c:'QP08377',n:'EUDERM X-GRADE FH/N',q:400},
+      {c:'QP08497',n:'RH-6678',q:220},{c:'QP08557',n:'XR-13-906',q:270},
+      {c:'QP08854',n:'REGEL PU-301',q:75},{c:'QP08901',n:'RODA CRYL 5748',q:1000},
+      {c:'QP08914',n:'RODA WAX MONO',q:110},{c:'QP09065',n:'AQUABASE HP.A',q:150},
+      {c:'QP09265',n:'ANIONIC POLYMER',q:125},{c:'QP09270',n:'ANTIFOAM PB02',q:775},
+      {c:'QP09278',n:'POLYPROPYLENE AMINE PAM',q:100}
+    ],
+    PTA:[
+      {c:'QM04291',n:'SADEPE PE',q:405},{c:'QM04294',n:'SADEDULLER DW',q:492},
+      {c:'QM04436',n:'SADE WHITE TP',q:760},{c:'QM04461',n:'SADE WHITE 2059',q:91},
+      {c:'QM05350',n:'SADELACQUER CWB',q:408},{c:'QM06517',n:'SADE VM',q:170.6},
+      {c:'QM06827',n:'SADE WHITE 443',q:278.5},{c:'QM07694',n:'SADESIL PM',q:37.5},
+      {c:'QP02050',n:'AMMONIA WATER 24%',q:14.3},{c:'QP03290',n:'TITEKOTE RI-115',q:768},
+      {c:'QP04172',n:'ASTACIN GROUND UH TF',q:474.75},{c:'QP05482',n:'EUDERM FIX EP',q:43},
+      {c:'QP05490',n:'DENSOTAN A',q:53},{c:'QP05883',n:'PM',q:104},
+      {c:'QP06007',n:'PRIMAL FGR EMULSION',q:154},{c:'QP06444',n:'PRIMAL SCL-371 EMULSION',q:1050},
+      {c:'QP06659',n:'RODA PURE LUSTER 1430',q:39},{c:'QP06933',n:'RODA PURE PREBASE 772',q:36},
+      {c:'QP07006',n:'MELIO PROMUL CU-47.A LIQ',q:127},{c:'QP07205',n:'RODA CRYL 5416',q:162},
+      {c:'QP07806',n:'EUDERM X-GRADE MP 2/N',q:22},{c:'QP08234',n:'UNIRES RU-13-134',q:501.75},
+      {c:'QP08324',n:'UNIRES RU-76-125',q:129},{c:'QP08326',n:'TITEKOTE RI-78-060',q:117},
+      {c:'QP08377',n:'EUDERM X-GRADE FH/N',q:431},{c:'QP08478',n:'EUDERM NAPPA SOFT MF',q:220},
+      {c:'QP08497',n:'RH-6678',q:105},{c:'QP08551',n:'WT-72-500',q:78},
+      {c:'QP08557',n:'XR-13-906',q:64},{c:'QP08558',n:'UNIRES RU-13-734',q:498},
+      {c:'QP08854',n:'REGEL PU-301',q:36},{c:'QP08901',n:'RODA CRYL 5748',q:79},
+      {c:'QP08914',n:'RODA WAX MONO',q:30}
+    ],
+    EFL:[
+      {c:'QP02075',n:'CALCIUM HYDROXIDE',q:93},{c:'QP02289',n:'SODIUM HYPOCHLORITE 100 g/l.',q:1032},
+      {c:'QP05767',n:'CAUSTIC SODA 32% SOLUTION',q:1192},{c:'QP06222',n:'ALUMINIUM SULPHATE LIQ 8%',q:1069},
+      {c:'QP09265',n:'ANIONIC POLYMER',q:24},{c:'QP09266',n:'CATIONIC POLYMER',q:12},
+      {c:'QP09268',n:'DISODIUM HYDROGEN PHOSPHATE',q:14},{c:'QP09270',n:'ANTIFOAM PB02',q:200},
+      {c:'QP09273',n:'POLYALUMINIUM CHLORIDE SOLUTIO',q:707}
+    ]
+  };
+  return (data[wh] || []).map(r => ({
+    session_id: sessionId, item_code: r.c, item_name: r.n,
+    warehouse_code: wh, qty_system: r.q,
+    qty_counted: null, note: null, is_deleted: false, lot_number: null
+  }));
+}
+
+// =============================================
+// COUNT PAGE
+// =============================================
+async function loadCountPage(sessionId) {
+  showPage('count');
+  const { data: session } = await sb.from('cycle_count_sessions').select('*').eq('id', sessionId).single();
+  currentSession = session;
+  const whColor = { DEP:'badge-dep', PTA:'badge-pta', EFL:'badge-efl' };
+  document.getElementById('count-title').textContent = `Kiểm kê kho ${session.warehouse_code}`;
+  document.getElementById('count-subtitle').textContent = `Ngày ${formatDate(session.count_date)} · Người đếm: ${session.created_by_name}`;
+  document.getElementById('count-header-right').innerHTML =
+    `<span class="badge ${whColor[session.warehouse_code]||'badge-dep'}">${session.warehouse_code}</span>
+     <span class="badge badge-progress">🔄 Đang thực hiện</span>`;
+
+  const { data: lines } = await sb.from('cycle_count_lines').select('*').eq('session_id', sessionId).order('item_code');
+  allCountLines = lines || [];
+  countLines = allCountLines.filter(l => !l.is_deleted);
+  renderCountTable();
+}
+
+function renderCountTable() {
+  const wrap = document.getElementById('count-table-wrap');
+  const visible = countLines;
+
+  if (!visible.length) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><p>Không có hóa chất</p></div>'; return; }
+
+  const active = allCountLines.filter(l => !l.is_deleted);
+  const done = active.filter(l => l.qty_counted !== null).length;
+  const pct = active.length > 0 ? Math.round(done / active.length * 100) : 0;
+  document.getElementById('count-progress-bar').style.width = pct + '%';
+  document.getElementById('count-progress-text').textContent = `${done}/${active.length} đã nhập (${pct}%)`;
+  document.getElementById('count-action-info').textContent = `${active.length - done} dòng chưa nhập`;
+  document.getElementById('count-filter-info').textContent = visible.length < active.length ? `Đang lọc: ${visible.length}/${active.length} dòng` : `${active.length} hóa chất`;
+  document.getElementById('btn-complete').disabled = done < active.length || active.length === 0;
+
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th style="width:40px">#</th>
+      <th>Mã HH</th><th>Tên hóa chất</th>
+      <th class="text-right">Tồn HT (kg)</th>
+      <th class="text-right">Thực tế (kg)</th>
+      <th>Ghi chú</th>
+      <th class="no-print" style="width:44px"></th>
+    </tr></thead>
+    <tbody>
+    ${visible.map((l, i) => `
+      <tr id="row-${l.id}">
+        <td class="text-muted text-sm">${i+1}</td>
+        <td class="font-mono text-sm">${l.item_code}</td>
+        <td style="max-width:200px;line-height:1.4">${l.item_name}</td>
+        <td class="text-right font-mono">${fmt(l.qty_system)}</td>
+        <td class="text-right">
+          <input type="number" step="0.001" min="0"
+            class="count-input ${l.qty_counted !== null ? 'filled' : ''}"
+            value="${l.qty_counted !== null ? l.qty_counted : ''}"
+            placeholder="0.000"
+            data-id="${l.id}"
+            oninput="onCountInput(this)"
+          />
+        </td>
+        <td>
+          <input type="text" style="width:130px;font-size:12px" placeholder="Ghi chú..."
+            data-note-id="${l.id}" value="${l.note || ''}" />
+        </td>
+        <td class="no-print">
+          <button class="btn btn-ghost btn-sm" onclick="deleteLine('${l.id}')" title="Xóa khỏi danh sách">🗑</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function onCountInput(el) {
+  el.classList.toggle('filled', el.value !== '');
+  const line = allCountLines.find(l => l.id === el.dataset.id);
+  if (line) line.qty_counted = el.value !== '' ? parseFloat(el.value) : null;
+  updateProgress();
+}
+
+function updateProgress() {
+  const active = allCountLines.filter(l => !l.is_deleted);
+  const done = active.filter(l => l.qty_counted !== null).length;
+  const pct = active.length > 0 ? Math.round(done / active.length * 100) : 0;
+  document.getElementById('count-progress-bar').style.width = pct + '%';
+  document.getElementById('count-progress-text').textContent = `${done}/${active.length} đã nhập (${pct}%)`;
+  document.getElementById('count-action-info').textContent = `${active.length - done} dòng chưa nhập`;
+  document.getElementById('btn-complete').disabled = done < active.length || active.length === 0;
+}
+
+async function deleteLine(id) {
+  if (!confirm('Xóa hóa chất này khỏi danh sách kiểm kê?\n(Không thể hoàn tác)')) return;
+  const { error } = await sb.from('cycle_count_lines').update({ is_deleted: true }).eq('id', id);
+  if (error) { alert('Lỗi: ' + error.message); return; }
+  const line = allCountLines.find(l => l.id === id);
+  if (line) { line.is_deleted = true; line.qty_counted = null; }
+  countLines = allCountLines.filter(l => !l.is_deleted && lineMatchesSearch(l));
+  renderCountTable();
+}
+
+function lineMatchesSearch(l) {
+  const q = document.getElementById('count-search')?.value?.toLowerCase() || '';
+  if (!q) return true;
+  return l.item_code.toLowerCase().includes(q) || l.item_name.toLowerCase().includes(q);
+}
+
+function filterCountLines() {
+  const q = document.getElementById('count-search').value.toLowerCase();
+  const active = allCountLines.filter(l => !l.is_deleted);
+  countLines = q ? active.filter(l => l.item_code.toLowerCase().includes(q) || l.item_name.toLowerCase().includes(q)) : active;
+  renderCountTable();
+}
+
+function collectFromDOM() {
+  document.querySelectorAll('.count-input').forEach(el => {
+    const line = allCountLines.find(l => l.id === el.dataset.id);
+    if (line) line.qty_counted = el.value !== '' ? parseFloat(el.value) : null;
+  });
+  document.querySelectorAll('[data-note-id]').forEach(el => {
+    const line = allCountLines.find(l => l.id === el.dataset.noteId);
+    if (line) line.note = el.value || null;
+  });
+}
+
+async function saveDraft() {
+  collectFromDOM();
+  const btn = document.getElementById('btn-save-draft');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Đang lưu...';
+  let ok = true;
+  for (const l of allCountLines) {
+    const { error } = await sb.from('cycle_count_lines').update({ qty_counted: l.qty_counted, note: l.note, is_deleted: l.is_deleted }).eq('id', l.id);
+    if (error) { ok = false; break; }
+  }
+  btn.disabled = false; btn.innerHTML = ok ? '✅ Đã lưu' : '❌ Lỗi lưu';
+  setTimeout(() => { btn.innerHTML = '💾 Lưu nháp'; }, 2000);
+}
+
+function confirmComplete() { openModal('modal-complete'); }
+
+async function completeSession() {
+  collectFromDOM();
+  for (const l of allCountLines) {
+    await sb.from('cycle_count_lines').update({ qty_counted: l.qty_counted, note: l.note, is_deleted: l.is_deleted }).eq('id', l.id);
+  }
+  await sb.from('cycle_count_sessions').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', currentSession.id);
+  closeModal('modal-complete');
+  await loadResult(currentSession.id);
+}
+
+// =============================================
+// RESULT PAGE
+// =============================================
+async function loadResult(sessionId) {
+  showPage('result');
+  const { data: session } = await sb.from('cycle_count_sessions').select('*').eq('id', sessionId).single();
+  currentSession = session;
+  const { data: lines } = await sb.from('cycle_count_lines').select('*').eq('session_id', sessionId).eq('is_deleted', false).order('item_code');
+  allCountLines = lines || [];
+
+  const whColor = { DEP:'badge-dep', PTA:'badge-pta', EFL:'badge-efl' };
+  document.getElementById('result-info').innerHTML = `
+    <span class="badge ${whColor[session.warehouse_code]||'badge-dep'}" style="font-size:13px;padding:4px 12px">${session.warehouse_code}</span>
+    <span><strong>📅</strong> ${formatDate(session.count_date)}</span>
+    <span><strong>👤</strong> ${session.created_by_name||'N/A'}</span>
+    <span><strong>⏱</strong> ${session.completed_at ? formatDateTime(session.completed_at) : '—'}</span>
+    ${session.note?`<span style="color:var(--text-2)">📝 ${session.note}</span>`:''}`;
+
+  const variance = lines.filter(l => Math.abs((l.qty_counted||0) - l.qty_system) > 0.0005);
+  const matched = lines.filter(l => Math.abs((l.qty_counted||0) - l.qty_system) <= 0.0005);
+  const totalPos = variance.filter(l=>l.qty_counted>l.qty_system).reduce((s,l)=>s+(l.qty_counted-l.qty_system),0);
+  const totalNeg = variance.filter(l=>l.qty_counted<l.qty_system).reduce((s,l)=>s+(l.qty_system-l.qty_counted),0);
+
+  document.getElementById('result-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-val" style="color:var(--primary)">${lines.length}</div><div class="stat-label">Tổng dòng</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--success)">${matched.length}</div><div class="stat-label">Khớp</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--danger)">${variance.length}</div><div class="stat-label">Chênh lệch</div></div>
+    <div class="stat-card"><div class="stat-val" style="font-size:16px;padding-top:4px;color:var(--warning)">+${fmt(totalPos)}<br>-${fmt(totalNeg)}</div><div class="stat-label">Chênh lệch (kg)</div></div>`;
+
+  document.getElementById('variance-count').textContent = `${variance.length} dòng`;
+  document.getElementById('matched-count').textContent = `${matched.length} dòng`;
+
+  const vBody = document.getElementById('result-variance-body');
+  vBody.innerHTML = variance.length === 0
+    ? '<tr><td colspan="7" class="text-center text-muted" style="padding:24px">🎉 Không có chênh lệch!</td></tr>'
+    : variance.map(l => {
+        const v = (l.qty_counted||0) - l.qty_system;
+        return `<tr>
+          <td class="font-mono text-sm">${l.item_code}</td><td>${l.item_name}</td>
+          <td><span class="badge ${whColor[l.warehouse_code]||'badge-dep'}">${l.warehouse_code||''}</span></td>
+          <td class="text-right font-mono">${fmt(l.qty_system)}</td>
+          <td class="text-right font-mono">${fmt(l.qty_counted)}</td>
+          <td class="text-right font-mono ${v>0?'variance-pos':'variance-neg'}">${v>0?'+':''}${fmt(v)}</td>
+          <td class="text-sm text-muted">${l.note||'—'}</td></tr>`;
+      }).join('');
+
+  const mBody = document.getElementById('result-match-body');
+  mBody.innerHTML = matched.length === 0
+    ? '<tr><td colspan="5" class="text-center text-muted" style="padding:24px">Không có dòng khớp</td></tr>'
+    : matched.map(l => `<tr>
+        <td class="font-mono text-sm">${l.item_code}</td><td>${l.item_name}</td>
+        <td><span class="badge ${whColor[l.warehouse_code]||'badge-dep'}">${l.warehouse_code||''}</span></td>
+        <td class="text-right font-mono">${fmt(l.qty_system)}</td>
+        <td class="text-right font-mono variance-zero">${fmt(l.qty_counted)}</td></tr>`).join('');
+}
+
+// =============================================
+// EXPORT EXCEL
+// =============================================
+async function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const hdrs = ['Mã HH','Tên hóa chất','Kho','Tồn HT (kg)','Thực tế (kg)','Chênh lệch (kg)','Ghi chú'];
+  const toRow = l => [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted||'', l.qty_counted!=null?(l.qty_counted-l.qty_system):'', l.note||''];
+  const ws1 = XLSX.utils.aoa_to_sheet([hdrs, ...allCountLines.map(toRow)]);
+  ws1['!cols'] = [12,30,8,14,14,14,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Tất cả');
+  const vLines = allCountLines.filter(l => Math.abs((l.qty_counted||0)-l.qty_system)>0.0005);
+  const ws2 = XLSX.utils.aoa_to_sheet([hdrs, ...vLines.map(toRow)]);
+  ws2['!cols'] = [12,30,8,14,14,14,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Chênh lệch');
+  XLSX.writeFile(wb, `CycleCount_${currentSession.warehouse_code}_${currentSession.count_date}.xlsx`);
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+  if (name === 'list') loadSessions();
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+function today() { return new Date().toISOString().split('T')[0]; }
+function formatDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+}
+function formatDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return `${formatDate(dt.toISOString().split('T')[0])} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+}
+function fmt(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+document.querySelectorAll('.modal-overlay').forEach(el => el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); }));
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('auth-page').style.display !== 'none') login(); });
+</script>
+</body>
+</html>
