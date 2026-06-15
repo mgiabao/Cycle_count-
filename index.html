@@ -134,7 +134,26 @@ tbody tr.deleted-row{opacity:.35;pointer-events:none}
 .exp-red{color:var(--danger);font-weight:600}
 .exp-orange{color:var(--warning);font-weight:500}
 /* Print */
-@media print{.navbar,.action-bar,.btn,.no-print{display:none!important}body{background:#fff}.card{box-shadow:none}table{font-size:11px}}
+@media print{
+  .navbar,.action-bar,.btn,.no-print{display:none!important}
+  body{background:#fff;font-size:11px}
+  .main{padding:8px;max-width:100%}
+  .card{box-shadow:none;border:1px solid #ccc;margin-bottom:6px}
+  .card-header{padding:6px 10px}
+  .card-body{padding:8px 10px}
+  .stats-row{grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+  .stat-card{padding:6px 8px}
+  .stat-val{font-size:18px}
+  #result-info{padding:6px 10px;gap:12px;margin-bottom:6px}
+  table{font-size:10px}
+  thead th{padding:5px 6px}
+  tbody td{padding:5px 6px}
+  /* Fit tất cả vào 1 trang */
+  @page{size:A4 landscape;margin:8mm}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page-header{margin-bottom:6px}
+  .page-title{font-size:14px}
+}
 </style>
 </head>
 <body>
@@ -256,35 +275,24 @@ tbody tr.deleted-row{opacity:.35;pointer-events:none}
       <div id="result-info" class="card card-body mb-4" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;padding:14px 20px"></div>
       <div class="stats-row" id="result-stats"></div>
 
-      <div class="card mb-4">
+      <div class="card">
         <div class="card-header">
-          <h3>⚠️ Hàng có chênh lệch / Variance Items</h3>
-          <span id="variance-count" class="badge badge-progress"></span>
+          <h3>📋 Tất cả hóa chất kiểm kê</h3>
+          <div style="display:flex;gap:8px">
+            <span id="variance-count" class="badge badge-progress"></span>
+            <span id="matched-count" class="badge badge-completed"></span>
+          </div>
         </div>
         <div class="table-wrap" style="border:none;border-radius:0">
-          <table><thead><tr>
+          <table id="result-all-table"><thead><tr id="result-all-head">
             <th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th>
             <th class="text-right">Tồn HT (kg)</th>
             <th class="text-right">Thực tế (kg)</th>
             <th class="text-right">Chênh lệch</th>
+            <th class="text-right">%</th>
             <th>Ghi chú</th>
           </tr></thead>
-          <tbody id="result-variance-body"></tbody></table>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h3>✅ Hàng khớp / Matched Items</h3>
-          <span id="matched-count" class="badge badge-completed"></span>
-        </div>
-        <div class="table-wrap" style="border:none;border-radius:0">
-          <table><thead><tr>
-            <th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th>
-            <th class="text-right">Tồn HT (kg)</th>
-            <th class="text-right">Thực tế (kg)</th>
-          </tr></thead>
-          <tbody id="result-match-body"></tbody></table>
+          <tbody id="result-all-body"></tbody></table>
         </div>
       </div>
     </div>
@@ -307,7 +315,6 @@ tbody tr.deleted-row{opacity:.35;pointer-events:none}
       <select id="new-wh" onchange="checkExistingSession()">
         <option value="DEP">DEP — Kho nguyên liệu</option>
         <option value="PTA">PTA — Khu sản xuất</option>
-        <option value="EFL">EFL — Xử lý nước thải</option>
       </select>
     </div>
     <div class="form-group">
@@ -526,40 +533,47 @@ function processXls(file) {
       if (raw.length < 2) { showFileError('File không có dữ liệu'); return; }
 
       const wh = document.getElementById('new-wh').value;
+      const isDepMode = (wh === 'DEP');
 
-      // Parse rows: skip header (row 0)
+      // DEP: group by item + lot (each lot = 1 row)
+      // PTA: group by item only (sum all lots)
       const grouped = {};
       for (let i = 1; i < raw.length; i++) {
         const row = raw[i];
         const itemCode = String(row[0] || '').trim();
         const desc = String(row[1] || '').trim();
+        const lotNumber = String(row[2] || '').trim();
         const location = String(row[5] || '').trim();
         const qty = parseFloat(row[6]);
         if (!itemCode || !desc) continue;
-        if (!itemCode.match(/^(QP|QM)/)) continue; // only QP/QM
-        if (isNaN(qty) || qty <= 0) continue; // skip negative/zero
-        // Parse warehouse from location
+        if (!itemCode.match(/^(QP|QM)/)) continue;
+        if (isNaN(qty) || qty <= 0) continue;
         const whMatch = location.match(/^(DEP|PTA|EFL)/);
         if (!whMatch) continue;
-        const rowWh = whMatch[1];
-        if (rowWh !== wh) continue; // filter by selected warehouse
+        if (whMatch[1] !== wh) continue;
 
-        if (!grouped[itemCode]) grouped[itemCode] = { item_code: itemCode, item_name: desc, qty: 0 };
-        grouped[itemCode].qty += qty;
+        if (isDepMode) {
+          const key = itemCode + '||' + lotNumber;
+          if (!grouped[key]) grouped[key] = { item_code: itemCode, item_name: desc, lot_number: lotNumber, qty: 0 };
+          grouped[key].qty += qty;
+        } else {
+          if (!grouped[itemCode]) grouped[itemCode] = { item_code: itemCode, item_name: desc, lot_number: null, qty: 0 };
+          grouped[itemCode].qty += qty;
+        }
       }
 
-      parsedXlsData = Object.values(grouped).sort((a,b) => a.item_code.localeCompare(b.item_code));
+      parsedXlsData = Object.values(grouped).sort((a,b) => a.item_code.localeCompare(b.item_code) || (a.lot_number||'').localeCompare(b.lot_number||''));
       const count = parsedXlsData.length;
       const totalKg = parsedXlsData.reduce((s,r) => s + r.qty, 0);
 
       document.getElementById('file-preview').innerHTML = `
         <div class="alert alert-success">
           ✅ Đọc thành công từ <strong>${file.name}</strong><br>
-          Kho <strong>${wh}</strong>: <strong>${count} hóa chất</strong>, tổng <strong>${fmt(totalKg)} kg</strong>
+          Kho <strong>${wh}</strong>: <strong>${count} dòng</strong> ${isDepMode?'(theo Item + Lot)':'(theo Item)'}, tổng <strong>${fmt(totalKg)} kg</strong>
         </div>
         <div class="table-wrap" style="max-height:180px;overflow-y:auto">
-          <table><thead><tr><th>Mã HH</th><th>Tên</th><th class="text-right">Tồn (kg)</th></tr></thead>
-          <tbody>${parsedXlsData.map(r=>`<tr><td class="font-mono text-sm">${r.item_code}</td><td>${r.item_name}</td><td class="text-right font-mono">${fmt(r.qty)}</td></tr>`).join('')}</tbody>
+          <table><thead><tr><th>Mã HH</th><th>Tên</th>${isDepMode?'<th>Lot</th>':''}<th class="text-right">Tồn (kg)</th></tr></thead>
+          <tbody>${parsedXlsData.map(r=>'<tr><td class="font-mono text-sm">'+r.item_code+'</td><td>'+r.item_name+'</td>'+(isDepMode?'<td class="font-mono text-sm">'+(r.lot_number||'—')+'</td>':'')+'<td class="text-right font-mono">'+fmt(r.qty)+'</td></tr>').join('')}</tbody>
           </table>
         </div>`;
     } catch(err) { showFileError('Lỗi đọc file: ' + err.message); }
@@ -601,11 +615,11 @@ async function createSession() {
       item_code: r.item_code,
       item_name: r.item_name,
       warehouse_code: wh,
+      lot_number: r.lot_number || null,
       qty_system: Math.round(r.qty * 1000) / 1000,
       qty_counted: null,
       note: null,
-      is_deleted: false,
-      lot_number: null
+      is_deleted: false
     }));
   } else {
     lines = getDemoLines(session.id, wh);
@@ -623,25 +637,33 @@ async function createSession() {
 function getDemoLines(sessionId, wh) {
   const data = {
     DEP:[
-      {c:'QM04291',n:'SADEPE PE',q:680},{c:'QM04294',n:'SADEDULLER DW',q:500},
-      {c:'QM04461',n:'SADE WHITE 2059',q:1120},{c:'QM05350',n:'SADELACQUER CWB',q:1020},
-      {c:'QM06517',n:'SADE VM',q:1300},{c:'QM06827',n:'SADE WHITE 443',q:1280},
-      {c:'QM07694',n:'SADESIL PM',q:340},{c:'QP02050',n:'AMMONIA WATER 24%',q:500},
-      {c:'QP02075',n:'CALCIUM HYDROXIDE',q:80},{c:'QP02289',n:'SODIUM HYPOCHLORITE 100 g/l.',q:2000},
-      {c:'QP03290',n:'TITEKOTE RI-115',q:3000},{c:'QP03382',n:'CORIAL BINDER IF',q:360},
-      {c:'QP05490',n:'DENSOTAN A',q:280},{c:'QP05767',n:'CAUSTIC SODA 32% SOLUTION',q:3000},
-      {c:'QP05883',n:'PM',q:190},{c:'QP06007',n:'PRIMAL FGR EMULSION',q:160},
-      {c:'QP06222',n:'ALUMINIUM SULPHATE LIQ 8%',q:1300},{c:'QP06444',n:'PRIMAL SCL-371 EMULSION',q:320},
-      {c:'QP06659',n:'RODA PURE LUSTER 1430',q:120},{c:'QP06933',n:'RODA PURE PREBASE 772',q:120},
-      {c:'QP07006',n:'MELIO PROMUL CU-47.A LIQ',q:120},{c:'QP07205',n:'RODA CRYL 5416',q:1000},
-      {c:'QP07806',n:'EUDERM X-GRADE MP 2/N',q:1560},{c:'QP08234',n:'UNIRES RU-13-134',q:1100},
-      {c:'QP08303',n:'EUDERM X-GRADE CGS 2',q:1380},{c:'QP08324',n:'UNIRES RU-76-125',q:440},
-      {c:'QP08326',n:'TITEKOTE RI-78-060',q:240},{c:'QP08377',n:'EUDERM X-GRADE FH/N',q:400},
-      {c:'QP08497',n:'RH-6678',q:220},{c:'QP08557',n:'XR-13-906',q:270},
-      {c:'QP08854',n:'REGEL PU-301',q:75},{c:'QP08901',n:'RODA CRYL 5748',q:1000},
-      {c:'QP08914',n:'RODA WAX MONO',q:110},{c:'QP09065',n:'AQUABASE HP.A',q:150},
-      {c:'QP09265',n:'ANIONIC POLYMER',q:125},{c:'QP09270',n:'ANTIFOAM PB02',q:775},
-      {c:'QP09278',n:'POLYPROPYLENE AMINE PAM',q:100}
+      {c:'QM04291',n:'SADEPE PE',l:'5451001',q:680},{c:'QM04294',n:'SADEDULLER DW',l:'5451002',q:500},
+      {c:'QM04461',n:'SADE WHITE 2059',l:'5451003',q:1120},{c:'QM05350',n:'SADELACQUER CWB',l:'5451004',q:1020},
+      {c:'QM06517',n:'SADE VM',l:'5451005',q:650},{c:'QM06517',n:'SADE VM',l:'5451006',q:650},
+      {c:'QM06827',n:'SADE WHITE 443',l:'5451007',q:1280},{c:'QM07694',n:'SADESIL PM',l:'5451008',q:340},
+      {c:'QP02050',n:'AMMONIA WATER 24%',l:'5451009',q:500},{c:'QP02075',n:'CALCIUM HYDROXIDE',l:'5451010',q:80},
+      {c:'QP02289',n:'SODIUM HYPOCHLORITE 100 g/l.',l:'5451011',q:2000},
+      {c:'QP03290',n:'TITEKOTE RI-115',l:'5451012',q:1500},{c:'QP03290',n:'TITEKOTE RI-115',l:'5451013',q:1500},
+      {c:'QP03382',n:'CORIAL BINDER IF',l:'5451014',q:360},{c:'QP05490',n:'DENSOTAN A',l:'5451015',q:280},
+      {c:'QP05767',n:'CAUSTIC SODA 32% SOLUTION',l:'5451016',q:3000},
+      {c:'QP05883',n:'PM',l:'5451017',q:190},{c:'QP06007',n:'PRIMAL FGR EMULSION',l:'5451018',q:160},
+      {c:'QP06222',n:'ALUMINIUM SULPHATE LIQ 8%',l:'5451019',q:1300},
+      {c:'QP06444',n:'PRIMAL SCL-371 EMULSION',l:'5451020',q:320},
+      {c:'QP06659',n:'RODA PURE LUSTER 1430',l:'5451021',q:120},
+      {c:'QP06933',n:'RODA PURE PREBASE 772',l:'5451022',q:120},
+      {c:'QP07006',n:'MELIO PROMUL CU-47.A LIQ',l:'5451023',q:120},
+      {c:'QP07205',n:'RODA CRYL 5416',l:'5451024',q:1000},
+      {c:'QP07806',n:'EUDERM X-GRADE MP 2/N',l:'5451025',q:1560},
+      {c:'QP08234',n:'UNIRES RU-13-134',l:'5451026',q:1100},
+      {c:'QP08303',n:'EUDERM X-GRADE CGS 2',l:'5451027',q:1380},
+      {c:'QP08324',n:'UNIRES RU-76-125',l:'5451028',q:440},
+      {c:'QP08326',n:'TITEKOTE RI-78-060',l:'5451029',q:240},
+      {c:'QP08377',n:'EUDERM X-GRADE FH/N',l:'5451030',q:400},
+      {c:'QP08497',n:'RH-6678',l:'5451031',q:220},{c:'QP08557',n:'XR-13-906',l:'5451032',q:270},
+      {c:'QP08854',n:'REGEL PU-301',l:'5451033',q:75},{c:'QP08901',n:'RODA CRYL 5748',l:'5451034',q:1000},
+      {c:'QP08914',n:'RODA WAX MONO',l:'5451035',q:110},{c:'QP09065',n:'AQUABASE HP.A',l:'5451036',q:150},
+      {c:'QP09265',n:'ANIONIC POLYMER',l:'5451037',q:125},{c:'QP09270',n:'ANTIFOAM PB02',l:'5451038',q:775},
+      {c:'QP09278',n:'POLYPROPYLENE AMINE PAM',l:'5451039',q:100}
     ],
     PTA:[
       {c:'QM04291',n:'SADEPE PE',q:405},{c:'QM04294',n:'SADEDULLER DW',q:492},
@@ -673,7 +695,8 @@ function getDemoLines(sessionId, wh) {
   return (data[wh] || []).map(r => ({
     session_id: sessionId, item_code: r.c, item_name: r.n,
     warehouse_code: wh, qty_system: r.q,
-    qty_counted: null, note: null, is_deleted: false, lot_number: null
+    qty_counted: null, note: null, is_deleted: false,
+    lot_number: (wh === 'DEP' && r.l) ? r.l : null
   }));
 }
 
@@ -712,12 +735,17 @@ function renderCountTable() {
   document.getElementById('count-filter-info').textContent = visible.length < active.length ? `Đang lọc: ${visible.length}/${active.length} dòng` : `${active.length} hóa chất`;
   document.getElementById('btn-complete').disabled = done < active.length || active.length === 0;
 
+  const isDepMode = currentSession && currentSession.warehouse_code === 'DEP';
+
   wrap.innerHTML = `<table>
     <thead><tr>
       <th style="width:40px">#</th>
       <th>Mã HH</th><th>Tên hóa chất</th>
+      ${isDepMode ? '<th>Lot</th>' : ''}
       <th class="text-right">Tồn HT (kg)</th>
       <th class="text-right">Thực tế (kg)</th>
+      <th class="text-right">Chênh lệch</th>
+      <th class="text-right">%</th>
       <th>Ghi chú</th>
       <th class="no-print" style="width:44px"></th>
     </tr></thead>
@@ -726,7 +754,8 @@ function renderCountTable() {
       <tr id="row-${l.id}">
         <td class="text-muted text-sm">${i+1}</td>
         <td class="font-mono text-sm">${l.item_code}</td>
-        <td style="max-width:200px;line-height:1.4">${l.item_name}</td>
+        <td style="max-width:180px;line-height:1.4">${l.item_name}</td>
+        ${isDepMode ? `<td class="font-mono text-sm">${l.lot_number||'—'}</td>` : ''}
         <td class="text-right font-mono">${fmt(l.qty_system)}</td>
         <td class="text-right">
           <input type="number" step="0.001" min="0"
@@ -734,11 +763,17 @@ function renderCountTable() {
             value="${l.qty_counted !== null ? l.qty_counted : ''}"
             placeholder="0.000"
             data-id="${l.id}"
-            oninput="onCountInput(this)"
+            oninput="onCountInput(this, '${l.id}')"
           />
         </td>
+        <td class="text-right font-mono" id="var-${l.id}" style="min-width:80px">
+          ${l.qty_counted !== null ? fmtVar(l.qty_counted - l.qty_system) : '—'}
+        </td>
+        <td class="text-right font-mono" id="varpct-${l.id}" style="min-width:60px">
+          ${l.qty_counted !== null && l.qty_system !== 0 ? fmtPct((l.qty_counted - l.qty_system) / l.qty_system * 100) : '—'}
+        </td>
         <td>
-          <input type="text" style="width:130px;font-size:12px" placeholder="Ghi chú..."
+          <input type="text" style="width:120px;font-size:12px" placeholder="Ghi chú..."
             data-note-id="${l.id}" value="${l.note || ''}" />
         </td>
         <td class="no-print">
@@ -748,10 +783,24 @@ function renderCountTable() {
     </tbody></table>`;
 }
 
-function onCountInput(el) {
+function onCountInput(el, id) {
   el.classList.toggle('filled', el.value !== '');
-  const line = allCountLines.find(l => l.id === el.dataset.id);
-  if (line) line.qty_counted = el.value !== '' ? parseFloat(el.value) : null;
+  const line = allCountLines.find(l => l.id === (id || el.dataset.id));
+  const val = el.value !== '' ? parseFloat(el.value) : null;
+  if (line) line.qty_counted = val;
+  // Update variance cells live
+  const varEl = document.getElementById('var-' + (id || el.dataset.id));
+  const pctEl = document.getElementById('varpct-' + (id || el.dataset.id));
+  if (varEl && line) {
+    if (val !== null) {
+      const v = val - line.qty_system;
+      varEl.innerHTML = fmtVar(v);
+      pctEl.innerHTML = line.qty_system !== 0 ? fmtPct(v / line.qty_system * 100) : '—';
+    } else {
+      varEl.innerHTML = '—';
+      pctEl.innerHTML = '—';
+    }
+  }
   updateProgress();
 }
 
@@ -856,28 +905,37 @@ async function loadResult(sessionId) {
   document.getElementById('variance-count').textContent = `${variance.length} dòng`;
   document.getElementById('matched-count').textContent = `${matched.length} dòng`;
 
-  const vBody = document.getElementById('result-variance-body');
-  vBody.innerHTML = variance.length === 0
-    ? '<tr><td colspan="7" class="text-center text-muted" style="padding:24px">🎉 Không có chênh lệch!</td></tr>'
-    : variance.map(l => {
-        const v = (l.qty_counted||0) - l.qty_system;
-        return `<tr>
-          <td class="font-mono text-sm">${l.item_code}</td><td>${l.item_name}</td>
-          <td><span class="badge ${whColor[l.warehouse_code]||'badge-dep'}">${l.warehouse_code||''}</span></td>
-          <td class="text-right font-mono">${fmt(l.qty_system)}</td>
-          <td class="text-right font-mono">${fmt(l.qty_counted)}</td>
-          <td class="text-right font-mono ${v>0?'variance-pos':'variance-neg'}">${v>0?'+':''}${fmt(v)}</td>
-          <td class="text-sm text-muted">${l.note||'—'}</td></tr>`;
-      }).join('');
+  const isDepResult = session.warehouse_code === 'DEP';
+  window._resultIsDepMode = isDepResult;
 
-  const mBody = document.getElementById('result-match-body');
-  mBody.innerHTML = matched.length === 0
-    ? '<tr><td colspan="5" class="text-center text-muted" style="padding:24px">Không có dòng khớp</td></tr>'
-    : matched.map(l => `<tr>
-        <td class="font-mono text-sm">${l.item_code}</td><td>${l.item_name}</td>
-        <td><span class="badge ${whColor[l.warehouse_code]||'badge-dep'}">${l.warehouse_code||''}</span></td>
-        <td class="text-right font-mono">${fmt(l.qty_system)}</td>
-        <td class="text-right font-mono variance-zero">${fmt(l.qty_counted)}</td></tr>`).join('');
+  // Update single table header for DEP (add Lot column)
+  document.getElementById('result-all-head').innerHTML =
+    '<th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th>' +
+    (isDepResult ? '<th>Lot</th>' : '') +
+    '<th class="text-right">Tồn HT (kg)</th><th class="text-right">Thực tế (kg)</th>' +
+    '<th class="text-right">Chênh lệch</th><th class="text-right">%</th><th>Ghi chú</th>';
+
+  const allBody = document.getElementById('result-all-body');
+  const totalCols = isDepResult ? 9 : 8;
+  allBody.innerHTML = lines.length === 0
+    ? `<tr><td colspan="${totalCols}" class="text-center text-muted" style="padding:24px">Không có dữ liệu</td></tr>`
+    : lines.map(l => {
+        const v = (l.qty_counted||0) - l.qty_system;
+        const pct = l.qty_system !== 0 ? (v / l.qty_system * 100) : null;
+        const isMatch = Math.abs(v) <= 0.0005;
+        const vCls = isMatch ? 'variance-zero' : v > 0 ? 'variance-pos' : 'variance-neg';
+        const rowBg = isMatch ? '' : (v < 0 ? 'background:#fff5f5' : 'background:#f0fdf4');
+        return `<tr style="${rowBg}">` +
+          `<td class="font-mono text-sm">${l.item_code}</td>` +
+          `<td>${l.item_name}</td>` +
+          `<td><span class="badge ${whColor[l.warehouse_code]||'badge-dep'}">${l.warehouse_code||''}</span></td>` +
+          (isDepResult ? `<td class="font-mono text-sm">${l.lot_number||'—'}</td>` : '') +
+          `<td class="text-right font-mono">${fmt(l.qty_system)}</td>` +
+          `<td class="text-right font-mono">${fmt(l.qty_counted)}</td>` +
+          `<td class="text-right font-mono"><span class="${vCls}">${isMatch ? '✓' : (v>0?'+':'')+fmt(v)}</span></td>` +
+          `<td class="text-right font-mono"><span class="${vCls}">${isMatch ? '—' : (pct!==null ? (pct>0?'+':'')+pct.toFixed(1)+'%' : '—')}</span></td>` +
+          `<td class="text-sm text-muted">${l.note||'—'}</td></tr>`;
+      }).join('');
 }
 
 // =============================================
@@ -885,16 +943,24 @@ async function loadResult(sessionId) {
 // =============================================
 async function exportExcel() {
   const wb = XLSX.utils.book_new();
-  const hdrs = ['Mã HH','Tên hóa chất','Kho','Tồn HT (kg)','Thực tế (kg)','Chênh lệch (kg)','Ghi chú'];
-  const toRow = l => [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted||'', l.qty_counted!=null?(l.qty_counted-l.qty_system):'', l.note||''];
+  const isDepExp = window._resultIsDepMode || (currentSession && currentSession.warehouse_code === 'DEP');
+  const hdrs = isDepExp
+    ? ['Mã HH','Tên hóa chất','Kho','Lot','Tồn HT (kg)','Thực tế (kg)','Chênh lệch (kg)','Chênh lệch (%)','Ghi chú']
+    : ['Mã HH','Tên hóa chất','Kho','Tồn HT (kg)','Thực tế (kg)','Chênh lệch (kg)','Chênh lệch (%)','Ghi chú'];
+  const toRow = l => {
+    const diff = l.qty_counted != null ? (l.qty_counted - l.qty_system) : '';
+    const pct  = l.qty_counted != null && l.qty_system !== 0 ? parseFloat(((l.qty_counted - l.qty_system) / l.qty_system * 100).toFixed(2)) : '';
+    return isDepExp
+      ? [l.item_code, l.item_name, l.warehouse_code||'', l.lot_number||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, l.note||'']
+      : [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, l.note||''];
+  };
   const ws1 = XLSX.utils.aoa_to_sheet([hdrs, ...allCountLines.map(toRow)]);
-  ws1['!cols'] = [12,30,8,14,14,14,20].map(w=>({wch:w}));
+  ws1['!cols'] = [12,30,8,14,14,14,12,20].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws1, 'Tất cả');
-  const vLines = allCountLines.filter(l => Math.abs((l.qty_counted||0)-l.qty_system)>0.0005);
-  const ws2 = XLSX.utils.aoa_to_sheet([hdrs, ...vLines.map(toRow)]);
-  ws2['!cols'] = [12,30,8,14,14,14,20].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws2, 'Chênh lệch');
-  XLSX.writeFile(wb, `CycleCount_${currentSession.warehouse_code}_${currentSession.count_date}.xlsx`);
+  // Tên file có ngày giờ
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `CycleCount_${currentSession.warehouse_code}_${currentSession.count_date}_${ts}.xlsx`);
 }
 
 // =============================================
@@ -919,6 +985,18 @@ function formatDateTime(d) {
   if (!d) return '—';
   const dt = new Date(d);
   return `${formatDate(dt.toISOString().split('T')[0])} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+}
+function fmtVar(v) {
+  if (v === null || v === undefined) return '—';
+  const cls = Math.abs(v) < 0.0005 ? 'variance-zero' : v > 0 ? 'variance-pos' : 'variance-neg';
+  const sign = v > 0 ? '+' : '';
+  return `<span class="${cls}">${sign}${Number(v).toLocaleString('en-US',{minimumFractionDigits:3,maximumFractionDigits:3})}</span>`;
+}
+function fmtPct(p) {
+  if (p === null || p === undefined) return '—';
+  const cls = Math.abs(p) < 0.01 ? 'variance-zero' : p > 0 ? 'variance-pos' : 'variance-neg';
+  const sign = p > 0 ? '+' : '';
+  return `<span class="${cls}">${sign}${Number(p).toFixed(1)}%</span>`;
 }
 function fmt(n) {
   if (n === null || n === undefined || n === '') return '—';
