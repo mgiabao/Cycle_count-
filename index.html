@@ -209,7 +209,10 @@ tbody tr.deleted-row{opacity:.35;pointer-events:none}
 }
 /* Print */
 @media print{
-  .navbar,.action-bar,.btn,.no-print{display:none!important}
+  .navbar,
+.action-bar,
+.btn,
+.no-print{display:none!important}
   body{background:#fff;font-size:11px}
   .main{padding:8px;max-width:100%}
   .card{box-shadow:none;border:1px solid #ccc;margin-bottom:6px}
@@ -223,7 +226,10 @@ tbody tr.deleted-row{opacity:.35;pointer-events:none}
   thead th{padding:5px 6px}
   tbody td{padding:5px 6px}
   /* Fit tất cả vào 1 trang */
-  @page{size:A4 landscape;margin:8mm}
+ @page{
+  size:A4 portrait;
+  margin:8mm;
+}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .page-header{margin-bottom:6px}
   .page-title{font-size:14px}
@@ -1028,7 +1034,10 @@ async function exportExcel() {
       ? [l.item_code, l.item_name, l.warehouse_code||'', l.lot_number||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, l.note||'']
       : [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, l.note||''];
   };
-  const ws1 = XLSX.utils.aoa_to_sheet([hdrs, ...allCountLines.map(toRow)]);
+  const ws1 = XLSX.utils.aoa_to_sheet([
+  ...reportHeader,
+  ...allCountLines.map(toRow)
+]);
   ws1['!cols'] = [12,30,8,14,14,14,12,20].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws1, 'Tất cả');
   // Tên file có ngày giờ
