@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cycle Count">
+<meta name="theme-color" content="#4f46e5">
+<meta name="description" content="Mini WMS — Cycle Count kiểm kê hóa chất cho nhà máy sản xuất da">
+<title>Cycle Count — Mini WMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN SYSTEM — PREMIUM THEME
+   ═══════════════════════════════════════════════ */
+:root {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #818cf8;
+  --primary-glow: rgba(99,102,241,.18);
+  --accent: #8b5cf6;
+  --success: #10b981;
+  --success-dark: #059669;
+  --success-light: #d1fae5;
+  --danger: #ef4444;
+  --danger-dark: #dc2626;
+  --danger-light: #fee2e2;
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+  --bg: #f1f5f9;
+  --bg-subtle: #f8fafc;
+  --surface: #ffffff;
+  --surface-hover: #f8fafc;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --text: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --text-inv: #ffffff;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.06);
+  --shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+  --shadow-md: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.04);
+  --shadow-lg: 0 20px 40px -8px rgba(0,0,0,.12);
+  --transition: .2s cubic-bezier(.4,0,.2,1);
+  --gradient-primary: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --gradient-dark: linear-gradient(135deg, #1e1b4b, #312e81, #3730a3);
+  --gradient-hero: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 100%);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════ SCROLLBAR ═══════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ═══════════ AUTH PAGE ═══════════ */
+#auth-page {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: var(--gradient-hero);
+  position: relative; overflow: hidden;
+}
+#auth-page::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 30% 20%, rgba(99,102,241,.15) 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 80%, rgba(139,92,246,.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+.auth-card {
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 48px 40px;
+  width: 400px;
+  box-shadow: 0 25px 80px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.1);
+  position: relative; z-index: 1;
+  animation: authSlideUp .6s cubic-bezier(.16,1,.3,1);
+}
+@keyframes authSlideUp {
+  from { opacity: 0; transform: translateY(30px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.auth-logo { text-align: center; margin-bottom: 32px; }
+.auth-logo-icon {
+  width: 64px; height: 64px;
+  background: var(--gradient-primary);
+  border-radius: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 30px;
+  box-shadow: 0 8px 24px rgba(99,102,241,.3);
+  margin-bottom: 16px;
+}
+.auth-logo h1 { font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -.02em; }
+.auth-logo p { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+
+/* ═══════════ NAVBAR ═══════════ */
+.navbar {
+  background: var(--gradient-dark);
+  padding: 0 28px; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+}
+.navbar-brand {
+  font-weight: 700; font-size: 17px;
+  color: #fff;
+  display: flex; align-items: center; gap: 10px;
+}
+.navbar-brand-icon {
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,.15);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.navbar-right { display: flex; align-items: center; gap: 10px; }
+.user-badge {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 12px;
+  color: rgba(255,255,255,.8);
+}
+.role-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border-radius: 99px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.role-warehouse { background: rgba(96,165,250,.2); color: #93c5fd; border: 1px solid rgba(96,165,250,.3); }
+.role-inventory { background: rgba(52,211,153,.2); color: #6ee7b7; border: 1px solid rgba(52,211,153,.3); }
+.role-manager { background: rgba(251,191,36,.2); color: #fcd34d; border: 1px solid rgba(251,191,36,.3); }
+
+/* ═══════════ LAYOUT ═══════════ */
+.main { max-width: 1200px; margin: 0 auto; padding: 28px; }
+.page { display: none; } .page.active { display: block; }
+
+/* ═══════════ FORM ═══════════ */
+.form-group { margin-bottom: 18px; }
+label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--text-2); margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+input, select, textarea {
+  width: 100%; padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-family: inherit;
+  color: var(--text); background: var(--surface);
+  outline: none; transition: all var(--transition);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ═══════════ BUTTONS ═══════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  cursor: pointer; border: none;
+  transition: all var(--transition); white-space: nowrap;
+  position: relative; overflow: hidden;
+}
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.btn-primary {
+  background: var(--gradient-primary); color: #fff;
+  box-shadow: 0 2px 8px rgba(99,102,241,.3);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(99,102,241,.4);
+  transform: translateY(-1px);
+}
+.btn-success {
+  background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+  box-shadow: 0 2px 8px rgba(16,185,129,.3);
+}
+.btn-success:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(16,185,129,.4);
+  transform: translateY(-1px);
+}
+.btn-outline {
+  background: var(--surface); color: var(--text);
+  border: 1.5px solid var(--border);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--bg); border-color: var(--primary-light);
+  color: var(--primary);
+}
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff;
+  box-shadow: 0 2px 8px rgba(239,68,68,.3);
+}
+.btn-danger:hover:not(:disabled) { box-shadow: 0 4px 16px rgba(239,68,68,.4); }
+.btn-ghost {
+  background: transparent; color: var(--text-3);
+  border: none; padding: 6px 8px; border-radius: var(--radius-xs);
+}
+.btn-ghost:hover { background: var(--danger-light); color: var(--danger); }
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: var(--radius-xs); }
+.btn-lg { padding: 12px 24px; font-size: 15px; }
+.btn-nav {
+  background: rgba(255,255,255,.1); color: rgba(255,255,255,.85);
+  border: 1px solid rgba(255,255,255,.15); padding: 6px 14px;
+  font-size: 12px; border-radius: var(--radius-xs);
+}
+.btn-nav:hover { background: rgba(255,255,255,.2); color: #fff; }
+.w-full { width: 100%; }
+
+/* ═══════════ CARDS ═══════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition);
+}
+.card:hover { box-shadow: var(--shadow); }
+.card-body { padding: 20px; }
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-header h3 { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+
+/* ═══════════ BADGES ═══════════ */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 99px;
+  letter-spacing: .02em;
+}
+.badge-progress { background: #fef3c7; color: #92400e; }
+.badge-completed { background: #d1fae5; color: #065f46; }
+.badge-dep { background: #dbeafe; color: #1e40af; }
+.badge-pta { background: #ede9fe; color: #5b21b6; }
+.badge-efl { background: #fce7f3; color: #9d174d; }
+
+/* ═══════════ TABLE ═══════════ */
+.table-wrap {
+  overflow-x: auto; border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+  padding: 10px 14px; text-align: left;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-2); text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap; position: sticky; top: 0; z-index: 2;
+}
+tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background var(--transition); }
+tbody tr:hover { background: var(--bg-subtle); }
+tbody tr.deleted-row { opacity: .3; pointer-events: none; }
+
+/* ═══════════ SESSION CARDS ═══════════ */
+.session-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+  transition: all var(--transition);
+  cursor: default;
+}
+.session-card:hover {
+  border-left-color: var(--accent);
+  box-shadow: var(--shadow-md);
+  transform: translateX(2px);
+}
+.session-card.card-dep { border-left-color: #3b82f6; }
+.session-card.card-pta { border-left-color: #8b5cf6; }
+.session-card.card-efl { border-left-color: #ec4899; }
+
+/* ═══════════ PROGRESS ═══════════ */
+.progress-bar-bg {
+  background: var(--border); border-radius: 99px; height: 6px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  background: var(--gradient-primary);
+  border-radius: 99px; height: 6px;
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+  position: relative;
+}
+.progress-bar-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+  animation: progressShine 2s infinite;
+}
+@keyframes progressShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ═══════════ COUNT INPUTS ═══════════ */
+.count-input {
+  width: 120px; text-align: right;
+  font-weight: 600; font-family: 'Inter', monospace;
+  font-size: 13px; padding: 8px 10px;
+  border-radius: var(--radius-xs);
+}
+.count-input.filled {
+  border-color: var(--success);
+  background: #f0fdf4;
+}
+.variance-pos { color: var(--success); font-weight: 700; }
+.variance-neg { color: var(--danger); font-weight: 700; }
+.variance-zero { color: var(--text-3); }
+
+/* ═══════════ CHECKBOX TOGGLE (DEP) ═══════════ */
+.toggle-wrap {
+  display: flex; align-items: center; justify-content: center;
+}
+.toggle-switch {
+  position: relative;
+  width: 48px; height: 26px;
+  display: inline-block;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: #e2e8f0;
+  border-radius: 99px;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 20px; width: 20px;
+  left: 3px; bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 0 12px rgba(16,185,129,.3);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(22px);
+}
+.toggle-label {
+  font-size: 12px; font-weight: 600; margin-left: 8px;
+  min-width: 55px;
+}
+.toggle-label.label-yes { color: var(--success); }
+.toggle-label.label-no { color: var(--text-3); }
+
+/* ═══════════ PTA SUB-ROWS ═══════════ */
+.sub-row-container {
+  background: #f8fafc;
+  border-top: 1px dashed var(--border);
+  padding: 0;
+}
+.sub-row-container td {
+  padding: 0 !important;
+  border-bottom: none !important;
+}
+.sub-rows-inner {
+  padding: 10px 14px 10px 48px;
+}
+.sub-row-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+  animation: subRowIn .25s ease;
+}
+@keyframes subRowIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.sub-row-item .sub-connector {
+  color: var(--text-3); font-size: 12px; min-width: 16px; text-align: center;
+}
+.sub-row-item input {
+  font-size: 12px; padding: 6px 10px;
+  border-radius: var(--radius-xs);
+}
+.sub-row-item .loc-input { width: 130px; }
+.sub-row-item .qty-input {
+  width: 110px; text-align: right;
+  font-weight: 600; font-family: 'Inter', monospace;
+}
+.sub-row-item .btn-remove-loc {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-3); font-size: 14px; padding: 4px;
+  border-radius: 4px; transition: all var(--transition);
+}
+.sub-row-item .btn-remove-loc:hover {
+  background: var(--danger-light); color: var(--danger);
+}
+.btn-add-loc {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  color: var(--primary); background: var(--primary-glow);
+  border: 1px dashed var(--primary-light);
+  padding: 4px 10px; border-radius: var(--radius-xs);
+  cursor: pointer; transition: all var(--transition);
+  margin-top: 4px;
+}
+.btn-add-loc:hover {
+  background: rgba(99,102,241,.12);
+  border-color: var(--primary);
+}
+.sum-display {
+  font-weight: 700; font-family: 'Inter', monospace;
+  font-size: 13px; color: var(--primary-dark);
+  background: var(--primary-glow);
+  padding: 4px 10px; border-radius: var(--radius-xs);
+  display: inline-block; min-width: 90px; text-align: right;
+}
+
+/* ═══════════ SEARCH ═══════════ */
+.search-wrap { position: relative; }
+.search-wrap input { padding-left: 40px; }
+.search-icon {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--text-3); pointer-events: none; font-size: 15px;
+}
+
+/* ═══════════ ALERTS ═══════════ */
+.alert {
+  padding: 14px 18px; border-radius: var(--radius-sm);
+  margin-bottom: 16px; font-size: 13px; line-height: 1.6;
+}
+.alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.alert-success { background: #f0fdf4; color: #065f46; border: 1px solid #bbf7d0; }
+.alert-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+/* ═══════════ MODAL ═══════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 32px;
+  width: 500px; max-width: 95vw;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn .3s cubic-bezier(.16,1,.3,1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal h3 {
+  font-size: 18px; font-weight: 800;
+  margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px;
+}
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+/* ═══════════ STAT CARDS ═══════════ */
+.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  text-align: center;
+  transition: all var(--transition);
+  position: relative; overflow: hidden;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.stat-card:nth-child(1)::before { background: var(--gradient-primary); }
+.stat-card:nth-child(2)::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.stat-card:nth-child(3)::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+.stat-card:nth-child(4)::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.stat-icon { font-size: 22px; margin-bottom: 6px; }
+.stat-val { font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+.stat-label { font-size: 11px; color: var(--text-2); margin-top: 4px; font-weight: 500; }
+
+/* ═══════════ PAGE HEADER ═══════════ */
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 22px; gap: 14px;
+}
+.page-title {
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -.02em;
+}
+.page-title small {
+  font-size: 13px; font-weight: 400; color: var(--text-3); margin-left: 8px;
+}
+
+/* ═══════════ FILTERS ═══════════ */
+.filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.filters select { width: auto; min-width: 150px; }
+
+/* ═══════════ ACTION BAR ═══════════ */
+.action-bar {
+  position: sticky; bottom: 0;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  z-index: 50;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.05);
+}
+
+/* ═══════════ DROP ZONE ═══════════ */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px; text-align: center;
+  transition: all var(--transition); cursor: pointer;
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--primary);
+  background: rgba(99,102,241,.04);
+}
+.drop-zone-icon { font-size: 40px; margin-bottom: 10px; }
+.drop-zone p { font-size: 14px; color: var(--text-2); }
+.drop-zone small { font-size: 12px; color: var(--text-3); }
+
+/* ═══════════ TOAST ═══════════ */
+.toast-container {
+  position: fixed; top: 76px; right: 24px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 20px;
+  box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 500;
+  animation: toastIn .35s cubic-bezier(.16,1,.3,1);
+  min-width: 280px;
+}
+.toast.toast-out { animation: toastOut .3s ease forwards; }
+.toast-success { border-left: 4px solid var(--success); }
+.toast-error { border-left: 4px solid var(--danger); }
+.toast-info { border-left: 4px solid var(--primary); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(60px); } }
+
+/* ═══════════ MISC ═══════════ */
+.empty { text-align: center; padding: 64px 20px; color: var(--text-3); }
+.empty-icon { font-size: 52px; margin-bottom: 14px; }
+.loading { text-align: center; padding: 40px; color: var(--text-3); font-size: 13px; }
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  margin-right: 8px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.font-mono { font-family: 'Inter', monospace; font-variant-numeric: tabular-nums; }
+.text-sm { font-size: 12px; }
+.text-muted { color: var(--text-2); }
+.mt-2{margin-top:8px} .mt-3{margin-top:12px} .mt-4{margin-top:16px}
+.mb-3{margin-bottom:12px} .mb-4{margin-bottom:16px}
+.flex{display:flex} .gap-2{gap:8px} .gap-3{gap:12px}
+.items-center{align-items:center}
+.divider { border: none; border-top: 1px solid var(--border-light); margin: 16px 0; }
+.exp-red { color: var(--danger); font-weight: 600; }
+.exp-orange { color: var(--warning); font-weight: 500; }
+
+/* ═══════════ MOBILE ═══════════ */
+@media(max-width:640px){
+  .auth-card { width: 92vw; padding: 32px 22px; }
+  .navbar { padding: 0 14px; height: 54px; }
+  .navbar-brand { font-size: 14px; }
+  .navbar-brand-icon { width: 28px; height: 28px; font-size: 14px; }
+  .user-badge { display: none; }
+  .role-badge { font-size: 10px; padding: 3px 8px; }
+  .main { padding: 16px; }
+  .page-header { flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .page-title { font-size: 18px; }
+  .page-header>div:last-child { width: 100%; }
+  .page-header .btn { width: 100%; justify-content: center; }
+  .stats-row { grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-val { font-size: 22px; }
+  .filters { flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .filters select { width: 100%; }
+  .session-card { padding: 14px 16px; flex-wrap: wrap; gap: 10px; }
+  .session-card>div:last-child { width: 100%; display: flex; justify-content: flex-end; }
+  #result-info { gap: 10px; padding: 12px 14px; font-size: 12px; }
+  .action-bar { padding: 12px 16px; flex-direction: column; gap: 8px; }
+  .action-bar>div:first-child { font-size: 12px; text-align: center; }
+  .action-bar>div:last-child { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .action-bar .btn { justify-content: center; }
+  #page-result .page-header>div:last-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  #page-result .page-header .btn { justify-content: center; }
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+  thead th { padding: 8px 10px; font-size: 10px; }
+  tbody td { padding: 8px 10px; font-size: 12px; }
+  .count-input { width: 95px; font-size: 13px; padding: 6px 8px; }
+  .card.mb-4 { padding: 14px 16px; }
+  #count-search { font-size: 16px; }
+  input, select, textarea { font-size: 16px; }
+  .modal { width: 95vw; padding: 24px 18px; max-height: 90vh; overflow-y: auto; border-radius: 16px; }
+  .modal-footer { flex-direction: column-reverse; }
+  .modal-footer .btn { width: 100%; justify-content: center; }
+  .card-header { padding: 12px 16px; flex-wrap: wrap; gap: 6px; }
+  .card-body { padding: 16px; }
+  .card-header>div { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sub-rows-inner { padding: 8px 10px 8px 28px; }
+  .sub-row-item { flex-wrap: wrap; gap: 6px; }
+  .sub-row-item .loc-input { width: 100px; }
+  .sub-row-item .qty-input { width: 85px; }
+  .toast-container { top: 64px; right: 12px; left: 12px; }
+  .toast { min-width: auto; }
+}
+
+/* ═══════════ PRINT ═══════════ */
+@media print {
+  .navbar, .action-bar, .btn, .no-print, .toast-container { display: none !important; }
+  body { background: #fff; font-size: 11px; }
+  .main { padding: 8px; max-width: 100%; }
+  .card { box-shadow: none; border: 1px solid #ccc; margin-bottom: 6px; }
+  .card-header { padding: 6px 10px; }
+  .card-body { padding: 8px 10px; }
+  .stats-row { grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 8px; }
+  .stat-card { padding: 6px 8px; }
+  .stat-card::before { display: none; }
+  .stat-val { font-size: 18px; }
+  #result-info { padding: 6px 10px; gap: 12px; margin-bottom: 6px; }
+  table { font-size: 10px; }
+  thead th { padding: 5px 6px; }
+  tbody td { padding: 5px 6px; }
+  @page { size: A4 landscape; margin: 8mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page-header { margin-bottom: 6px; }
+  .page-title { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ===== AUTH ===== -->
+<div id="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🏭</div>
+      <h1>Mini WMS</h1>
+      <p>Cycle Count — Kiểm kê hóa chất</p>
+    </div>
+    <div id="auth-error" class="alert alert-danger" style="display:none"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="email@company.com" />
+    </div>
+    <div class="form-group">
+      <label>Mật khẩu / Password</label>
+      <input type="password" id="password" placeholder="••••••••" />
+    </div>
+    <button class="btn btn-primary w-full btn-lg" onclick="login()" id="login-btn">Đăng nhập / Sign In</button>
+    <p style="text-align:center;margin-top:18px;font-size:12px;color:var(--text-3)">Mini WMS v2.0 — Premium Edition</p>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="main-app" style="display:none">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-brand-icon">🧪</span>
+      Cycle Count
+    </div>
+    <div class="navbar-right">
+      <span id="nav-username" class="user-badge"></span>
+      <span id="nav-role" class="role-badge"></span>
+      <button class="btn btn-nav" onclick="logout()">Đăng xuất</button>
+    </div>
+  </nav>
+
+  <!-- PAGE: LIST -->
+  <div id="page-list" class="page active">
+    <div class="main">
+      <div class="page-header">
+        <div class="page-title">Kiểm kê hóa chất <small>Chemical Cycle Count</small></div>
+        <button class="btn btn-primary no-print" onclick="showNewModal()" id="btn-new-count">+ Tạo kiểm kê mới</button>
+      </div>
+      <div class="filters">
+        <select id="filter-wh" onchange="loadSessions()">
+          <option value="">Tất cả kho</option>
+          <option value="DEP">DEP — Kho nguyên liệu</option>
+          <option value="PTA">PTA — Khu sản xuất</option>
+          <option value="EFL">EFL — Nước thải</option>
+        </select>
+        <select id="filter-status" onchange="loadSessions()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="in_progress">Đang thực hiện</option>
+          <option value="completed">Đã hoàn tất</option>
+        </select>
+      </div>
+      <div id="sessions-list"><div class="loading"><span class="spinner"></span>Đang tải...</div></div>
+    </div>
+  </div>
+
+  <!-- PAGE: COUNT -->
+  <div id="page-count" class="page">
+    <div class="main">
+      <div class="page-header">
+        <div>
+          <button class="btn btn-outline btn-sm no-print mb-3" onclick="showPage('list')">← Quay lại</button>
+          <div class="page-title" id="count-title">Thực hiện kiểm kê</div>
+          <div style="margin-top:4px;font-size:13px;color:var(--text-2)" id="count-subtitle"></div>
+        </div>
+        <div id="count-header-right" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- Progress -->
+      <div class="card mb-4" style="padding:16px 22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600">Tiến độ / Progress</span>
+          <span id="count-progress-text" style="font-size:13px;color:var(--text-2);font-weight:500"></span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="count-progress-bar" style="width:0%"></div></div>
+      </div>
+
+      <!-- Search -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center" class="no-print">
+        <div class="search-wrap" style="flex:1">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="count-search" placeholder="Tìm theo mã hoặc tên hóa chất..." oninput="filterCountLines()" />
+        </div>
+        <div style="font-size:12px;color:var(--text-2);font-weight:500" id="count-filter-info"></div>
+      </div>
+
+      <div class="table-wrap" id="count-table-wrap">
+        <div class="loading"><span class="spinner"></span>Đang tải...</div>
+      </div>
+    </div>
+    <div class="action-bar no-print">
+      <div style="font-size:13px;color:var(--text-2);font-weight:500" id="count-action-info"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" onclick="saveDraft()" id="btn-save-draft">💾 Lưu nháp</button>
+        <button class="btn btn-success" onclick="confirmComplete()" id="btn-complete" disabled>✅ Hoàn tất kiểm kê</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: RESULT -->
+  <div id="page-result" class="page">
+    <div class="main">
+      <div class="page-header">
+        <div>
+          <button class="btn btn-outline btn-sm no-print mb-3" onclick="showPage('list')">← Quay lại</button>
+          <div class="page-title">Kết quả kiểm kê <small>Count Result</small></div>
+        </div>
+        <div style="display:flex;gap:8px" class="no-print">
+          <button class="btn btn-outline" onclick="exportExcel()">📊 Xuất Excel</button>
+          <button class="btn btn-outline" onclick="window.print()">🖨️ In PDF</button>
+        </div>
+      </div>
+      <div id="result-info" class="card card-body mb-4" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;padding:16px 22px"></div>
+      <div class="stats-row" id="result-stats"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>📋 Tất cả hóa chất kiểm kê</h3>
+          <div style="display:flex;gap:8px">
+            <span id="variance-count" class="badge badge-progress"></span>
+            <span id="matched-count" class="badge badge-completed"></span>
+          </div>
+        </div>
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table id="result-all-table"><thead><tr id="result-all-head">
+            <th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th>
+            <th class="text-right">Tồn HT (kg)</th>
+            <th class="text-right">Thực tế (kg)</th>
+            <th class="text-right">Chênh lệch</th>
+            <th class="text-right">%</th>
+            <th>Ghi chú</th>
+          </tr></thead>
+          <tbody id="result-all-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-app -->
+</div><!-- /app -->
+
+<!-- MODAL: New Count -->
+<div class="modal-overlay" id="modal-new">
+  <div class="modal">
+    <h3>🆕 Tạo kiểm kê mới</h3>
+    <div id="modal-new-error" class="alert alert-danger" style="display:none"></div>
+    <div id="modal-new-warning" class="alert alert-warning" style="display:none">
+      ⚠️ Kho này đang có kiểm kê chưa hoàn tất. Vui lòng hoàn tất trước khi tạo mới.
+    </div>
+
+    <div class="form-group">
+      <label>Kho / Warehouse</label>
+      <select id="new-wh" onchange="checkExistingSession()">
+        <option value="DEP">DEP — Kho nguyên liệu</option>
+        <option value="PTA">PTA — Khu sản xuất</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Ngày kiểm kê</label>
+      <input type="date" id="new-date" />
+    </div>
+    <div class="form-group">
+      <label>Ghi chú (tùy chọn)</label>
+      <textarea id="new-note" rows="2" placeholder="Ví dụ: Kiểm kê tuần 24..."></textarea>
+    </div>
+
+    <div class="alert alert-info">
+      📁 Bạn có thể <strong>import file XLS từ Oracle</strong> để lấy tồn kho thật, hoặc dùng tồn kho đã có trong hệ thống.
+    </div>
+
+    <div class="form-group mt-3">
+      <label>Import file Oracle XLS (tùy chọn)</label>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('xls-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div class="drop-zone-icon">📂</div>
+        <p>Kéo thả hoặc bấm để chọn file XLS</p>
+        <small>File export từ Oracle — sẽ tự động lọc theo kho đã chọn</small>
+      </div>
+      <input type="file" id="xls-input" accept=".xls,.xlsx" style="display:none" onchange="handleFileSelect(event)" />
+      <div id="file-preview" style="margin-top:10px"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-new')">Hủy</button>
+      <button class="btn btn-primary" onclick="createSession()" id="btn-create">🚀 Bắt đầu kiểm kê</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Confirm Complete -->
+<div class="modal-overlay" id="modal-complete">
+  <div class="modal">
+    <h3>✅ Xác nhận hoàn tất?</h3>
+    <p style="color:var(--text-2);font-size:13px;line-height:1.7">
+      Sau khi xác nhận, session sẽ được <strong>khóa lại</strong> và không thể chỉnh sửa.<br>
+      Tồn kho sẽ <strong>không thay đổi</strong> — chỉ ghi nhận chênh lệch để báo cáo.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-complete')">Quay lại</button>
+      <button class="btn btn-success" onclick="completeSession()">✅ Xác nhận hoàn tất</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CONFIG
+// =============================================
+const SUPABASE_URL = 'https://dyrarmbydupfjtlvsswq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_JyD-UH2lHwp_wunzFpxQvg_eidAt3uu';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null, currentProfile = null, currentSession = null;
+let allCountLines = [], countLines = [];
+let parsedXlsData = null;
+// PTA sub-locations data: { lineId: [{name:'', qty:0}, ...] }
+let ptaLocations = {};
+
+// =============================================
+// TOAST SYSTEM
+// =============================================
+function showToast(message, type = 'info', duration = 3000) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span style="font-size:16px">${icons[type]||'ℹ️'}</span><span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// =============================================
+// AUTH
+// =============================================
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('auth-error');
+  if (!email || !password) { showErr(err, 'Vui lòng nhập đầy đủ thông tin'); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Đang đăng nhập...';
+  err.style.display = 'none';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { showErr(err, 'Sai email hoặc mật khẩu'); btn.disabled = false; btn.innerHTML = 'Đăng nhập / Sign In'; return; }
+  await initApp(data.user);
+}
+
+async function initApp(user) {
+  currentUser = user;
+  const { data: profile } = await sb.from('user_profiles').select('*').eq('id', user.id).single();
+  currentProfile = profile || { id: user.id, full_name: user.email.split('@')[0], role: 'manager' };
+  if (!profile) await sb.from('user_profiles').insert({ id: user.id, full_name: currentProfile.full_name, role: 'manager' });
+
+  document.getElementById('nav-username').textContent = currentProfile.full_name;
+  const roleEl = document.getElementById('nav-role');
+  roleEl.textContent = { warehouse:'Warehouse', inventory:'Inventory', manager:'Manager' }[currentProfile.role] || currentProfile.role;
+  roleEl.className = `role-badge role-${currentProfile.role}`;
+
+  const whFilter = document.getElementById('filter-wh');
+  if (currentProfile.role === 'warehouse') { whFilter.value = 'DEP'; whFilter.disabled = true; }
+  else if (currentProfile.role === 'inventory') { whFilter.value = 'PTA'; whFilter.disabled = true; }
+  if (currentProfile.role === 'manager') document.getElementById('btn-new-count').style.display = 'none';
+
+  document.getElementById('auth-page').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  await loadSessions();
+}
+
+async function logout() { await sb.auth.signOut(); location.reload(); }
+
+window.addEventListener('load', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await initApp(session.user);
+});
+
+// =============================================
+// SESSIONS LIST
+// =============================================
+async function loadSessions() {
+  const el = document.getElementById('sessions-list');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Đang tải...</div>';
+  let q = sb.from('cycle_count_sessions').select('*').order('created_at', { ascending: false });
+  const wh = document.getElementById('filter-wh').value;
+  const st = document.getElementById('filter-status').value;
+  if (currentProfile.role === 'warehouse') q = q.eq('warehouse_code', 'DEP');
+  else if (currentProfile.role === 'inventory') q = q.eq('warehouse_code', 'PTA');
+  else if (wh) q = q.eq('warehouse_code', wh);
+  if (st) q = q.eq('status', st);
+  const { data: sessions, error } = await q;
+  if (error) { el.innerHTML = `<div class="alert alert-danger">Lỗi: ${error.message}</div>`; return; }
+  if (!sessions?.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>Chưa có kiểm kê nào</p><p style="font-size:12px;margin-top:8px;color:var(--text-3)">Bấm "Tạo kiểm kê mới" để bắt đầu</p></div>'; return; }
+
+  const ids = sessions.map(s => s.id);
+  const { data: lines } = await sb.from('cycle_count_lines').select('session_id,qty_counted,is_deleted').in('session_id', ids);
+  const cm = {};
+  if (lines) lines.forEach(l => {
+    if (!cm[l.session_id]) cm[l.session_id] = { total: 0, done: 0 };
+    if (!l.is_deleted) { cm[l.session_id].total++; if (l.qty_counted !== null) cm[l.session_id].done++; }
+  });
+
+  const cardColor = { DEP: 'card-dep', PTA: 'card-pta', EFL: 'card-efl' };
+  const whBadge = { DEP: 'badge-dep', PTA: 'badge-pta', EFL: 'badge-efl' };
+  el.innerHTML = sessions.map(s => {
+    const c = cm[s.id] || { total: 0, done: 0 };
+    const pct = c.total > 0 ? Math.round(c.done / c.total * 100) : 0;
+    const done = s.status === 'completed';
+    return `<div class="session-card ${cardColor[s.warehouse_code]||'card-dep'}">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-weight:800;font-size:16px;letter-spacing:-.01em">${s.warehouse_code}</span>
+          <span class="badge ${whBadge[s.warehouse_code]||'badge-dep'}">${s.warehouse_code}</span>
+          <span class="badge ${done?'badge-completed':'badge-progress'}">${done?'✅ Hoàn tất':'🔄 Đang thực hiện'}</span>
+          <span style="font-size:13px;color:var(--text-2);font-weight:500">${formatDate(s.count_date)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-3)">Bởi ${s.created_by_name||'N/A'} · ${formatDateTime(s.created_at)}</div>
+        ${s.note?`<div style="font-size:12px;color:var(--text-2);margin-top:4px">📝 ${s.note}</div>`:''}
+        ${!done?`<div style="margin-top:10px"><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div><div style="font-size:12px;color:var(--text-2);margin-top:5px;font-weight:500">${c.done}/${c.total} đã nhập (${pct}%)</div></div>`
+        :`<div style="font-size:12px;color:var(--text-3);margin-top:6px">📦 ${c.total} dòng · ${c.done} đã đếm</div>`}
+      </div>
+      <div style="display:flex;gap:8px;margin-left:16px;flex-shrink:0;align-items:center">
+        ${done
+          ? `<button class="btn btn-outline btn-sm" onclick="loadResult('${s.id}')">📊 Xem kết quả</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="loadCountPage('${s.id}')">▶️ Tiếp tục đếm</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="deleteSession('${s.id}', '${s.warehouse_code}', '${formatDate(s.count_date)}')" title="Xóa kiểm kê này" style="color:var(--danger);font-size:16px;padding:4px 8px">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// =============================================
+// DELETE SESSION
+// =============================================
+async function deleteSession(id, wh, date) {
+  if (!confirm(`Xóa kiểm kê kho ${wh} ngày ${date}?\n\nToàn bộ dữ liệu đã nhập sẽ bị xóa vĩnh viễn.`)) return;
+  const { error: lErr } = await sb.from('cycle_count_lines').delete().eq('session_id', id);
+  if (lErr) { showToast('Lỗi xóa dòng: ' + lErr.message, 'error'); return; }
+  const { error: sErr } = await sb.from('cycle_count_sessions').delete().eq('id', id);
+  if (sErr) { showToast('Lỗi xóa session: ' + sErr.message, 'error'); return; }
+  showToast('Đã xóa kiểm kê thành công', 'success');
+  await loadSessions();
+}
+
+// =============================================
+// NEW SESSION MODAL
+// =============================================
+async function showNewModal() {
+  const role = currentProfile.role;
+  const whEl = document.getElementById('new-wh');
+  if (role === 'warehouse') { whEl.value = 'DEP'; whEl.disabled = true; }
+  else if (role === 'inventory') { whEl.value = 'PTA'; whEl.disabled = true; }
+  else { whEl.disabled = false; }
+  document.getElementById('new-date').value = today();
+  document.getElementById('new-note').value = '';
+  document.getElementById('modal-new-error').style.display = 'none';
+  document.getElementById('modal-new-warning').style.display = 'none';
+  document.getElementById('btn-create').disabled = false;
+  document.getElementById('file-preview').innerHTML = '';
+  document.getElementById('xls-input').value = '';
+  parsedXlsData = null;
+  await checkExistingSession();
+  openModal('modal-new');
+}
+
+async function checkExistingSession() {
+  const wh = document.getElementById('new-wh').value;
+  const { data } = await sb.from('cycle_count_sessions').select('id').eq('warehouse_code', wh).eq('status', 'in_progress').limit(1);
+  const hasExisting = data && data.length > 0;
+  document.getElementById('modal-new-warning').style.display = hasExisting ? 'block' : 'none';
+  document.getElementById('btn-create').disabled = hasExisting;
+}
+
+// =============================================
+// XLS IMPORT
+// =============================================
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('dragover'); }
+function onDragLeave(e) { document.getElementById('drop-zone').classList.remove('dragover'); }
+function onDrop(e) { e.preventDefault(); document.getElementById('drop-zone').classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) processXls(f); }
+function handleFileSelect(e) { const f = e.target.files[0]; if (f) processXls(f); }
+
+function processXls(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (raw.length < 2) { showFileError('File không có dữ liệu'); return; }
+
+      const wh = document.getElementById('new-wh').value;
+      const isDepMode = (wh === 'DEP');
+      const grouped = {};
+      for (let i = 1; i < raw.length; i++) {
+        const row = raw[i];
+        const itemCode = String(row[0] || '').trim();
+        const desc = String(row[1] || '').trim();
+        const lotNumber = String(row[2] || '').trim();
+        const location = String(row[5] || '').trim();
+        const qty = parseFloat(row[6]);
+        if (!itemCode || !desc) continue;
+        if (!itemCode.match(/^(QP|QM)/)) continue;
+        if (isNaN(qty) || qty <= 0) continue;
+        const whMatch = location.match(/^(DEP|PTA|EFL)/);
+        if (!whMatch) continue;
+        if (whMatch[1] !== wh) continue;
+
+        if (isDepMode) {
+          const key = itemCode + '||' + lotNumber;
+          if (!grouped[key]) grouped[key] = { item_code: itemCode, item_name: desc, lot_number: lotNumber, qty: 0 };
+          grouped[key].qty += qty;
+        } else {
+          if (!grouped[itemCode]) grouped[itemCode] = { item_code: itemCode, item_name: desc, lot_number: null, qty: 0 };
+          grouped[itemCode].qty += qty;
+        }
+      }
+
+      parsedXlsData = Object.values(grouped).sort((a,b) => a.item_code.localeCompare(b.item_code) || (a.lot_number||'').localeCompare(b.lot_number||''));
+      const count = parsedXlsData.length;
+      const totalKg = parsedXlsData.reduce((s,r) => s + r.qty, 0);
+
+      document.getElementById('file-preview').innerHTML = `
+        <div class="alert alert-success">
+          ✅ Đọc thành công từ <strong>${file.name}</strong><br>
+          Kho <strong>${wh}</strong>: <strong>${count} dòng</strong> ${isDepMode?'(theo Item + Lot)':'(theo Item)'}, tổng <strong>${fmt(totalKg)} kg</strong>
+        </div>
+        <div class="table-wrap" style="max-height:180px;overflow-y:auto">
+          <table><thead><tr><th>Mã HH</th><th>Tên</th>${isDepMode?'<th>Lot</th>':''}<th class="text-right">Tồn (kg)</th></tr></thead>
+          <tbody>${parsedXlsData.map(r=>'<tr><td class="font-mono text-sm">'+r.item_code+'</td><td>'+r.item_name+'</td>'+(isDepMode?'<td class="font-mono text-sm">'+(r.lot_number||'—')+'</td>':'')+'<td class="text-right font-mono">'+fmt(r.qty)+'</td></tr>').join('')}</tbody>
+          </table>
+        </div>`;
+    } catch(err) { showFileError('Lỗi đọc file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showFileError(msg) {
+  document.getElementById('file-preview').innerHTML = `<div class="alert alert-danger">${msg}</div>`;
+  parsedXlsData = null;
+}
+
+// =============================================
+// CREATE SESSION
+// =============================================
+async function createSession() {
+  const wh = document.getElementById('new-wh').value;
+  const date = document.getElementById('new-date').value;
+  const note = document.getElementById('new-note').value.trim();
+  const errEl = document.getElementById('modal-new-error');
+  const btn = document.getElementById('btn-create');
+  if (!date) { showErr(errEl, 'Vui lòng chọn ngày kiểm kê'); return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Đang tạo...';
+
+  const { data: session, error: sErr } = await sb.from('cycle_count_sessions').insert({
+    warehouse_code: wh, count_date: date,
+    note: note || null, created_by: currentUser.id,
+    created_by_name: currentProfile.full_name || currentUser.email
+  }).select().single();
+
+  if (sErr) { showErr(errEl, sErr.message); btn.disabled = false; btn.innerHTML = '🚀 Bắt đầu kiểm kê'; return; }
+
+  let lines = [];
+  if (parsedXlsData && parsedXlsData.length > 0) {
+    lines = parsedXlsData.map(r => ({
+      session_id: session.id,
+      item_code: r.item_code, item_name: r.item_name,
+      warehouse_code: wh,
+      lot_number: r.lot_number || null,
+      qty_system: Math.round(r.qty * 1000) / 1000,
+      qty_counted: null, note: null, is_deleted: false
+    }));
+  } else {
+    lines = getDemoLines(session.id, wh);
+  }
+
+  if (lines.length > 0) {
+    const { error: lErr } = await sb.from('cycle_count_lines').insert(lines);
+    if (lErr) { showErr(errEl, 'Lỗi tạo dòng: ' + lErr.message); btn.disabled = false; btn.innerHTML = '🚀 Bắt đầu kiểm kê'; return; }
+  }
+
+  closeModal('modal-new');
+  showToast(`Đã tạo kiểm kê kho ${wh} thành công!`, 'success');
+  await loadCountPage(session.id);
+}
+
+function getDemoLines(sessionId, wh) {
+  const data = {
+    DEP:[
+      {c:'QM04291',n:'SADEPE PE',l:'5451001',q:680},{c:'QM04294',n:'SADEDULLER DW',l:'5451002',q:500},
+      {c:'QM04461',n:'SADE WHITE 2059',l:'5451003',q:1120},{c:'QM05350',n:'SADELACQUER CWB',l:'5451004',q:1020},
+      {c:'QM06517',n:'SADE VM',l:'5451005',q:650},{c:'QM06517',n:'SADE VM',l:'5451006',q:650},
+      {c:'QM06827',n:'SADE WHITE 443',l:'5451007',q:1280},{c:'QM07694',n:'SADESIL PM',l:'5451008',q:340},
+      {c:'QP02050',n:'AMMONIA WATER 24%',l:'5451009',q:500},{c:'QP02075',n:'CALCIUM HYDROXIDE',l:'5451010',q:80},
+      {c:'QP02289',n:'SODIUM HYPOCHLORITE 100 g/l.',l:'5451011',q:2000},
+      {c:'QP03290',n:'TITEKOTE RI-115',l:'5451012',q:1500},{c:'QP03290',n:'TITEKOTE RI-115',l:'5451013',q:1500},
+      {c:'QP03382',n:'CORIAL BINDER IF',l:'5451014',q:360},{c:'QP05490',n:'DENSOTAN A',l:'5451015',q:280},
+      {c:'QP05767',n:'CAUSTIC SODA 32% SOLUTION',l:'5451016',q:3000},
+      {c:'QP05883',n:'PM',l:'5451017',q:190},{c:'QP06007',n:'PRIMAL FGR EMULSION',l:'5451018',q:160},
+      {c:'QP06222',n:'ALUMINIUM SULPHATE LIQ 8%',l:'5451019',q:1300},
+      {c:'QP06444',n:'PRIMAL SCL-371 EMULSION',l:'5451020',q:320},
+      {c:'QP06659',n:'RODA PURE LUSTER 1430',l:'5451021',q:120},
+      {c:'QP06933',n:'RODA PURE PREBASE 772',l:'5451022',q:120},
+      {c:'QP07006',n:'MELIO PROMUL CU-47.A LIQ',l:'5451023',q:120},
+      {c:'QP07205',n:'RODA CRYL 5416',l:'5451024',q:1000},
+      {c:'QP07806',n:'EUDERM X-GRADE MP 2/N',l:'5451025',q:1560},
+      {c:'QP08234',n:'UNIRES RU-13-134',l:'5451026',q:1100},
+      {c:'QP08303',n:'EUDERM X-GRADE CGS 2',l:'5451027',q:1380},
+      {c:'QP08324',n:'UNIRES RU-76-125',l:'5451028',q:440},
+      {c:'QP08326',n:'TITEKOTE RI-78-060',l:'5451029',q:240},
+      {c:'QP08377',n:'EUDERM X-GRADE FH/N',l:'5451030',q:400},
+      {c:'QP08497',n:'RH-6678',l:'5451031',q:220},{c:'QP08557',n:'XR-13-906',l:'5451032',q:270},
+      {c:'QP08854',n:'REGEL PU-301',l:'5451033',q:75},{c:'QP08901',n:'RODA CRYL 5748',l:'5451034',q:1000},
+      {c:'QP08914',n:'RODA WAX MONO',l:'5451035',q:110},{c:'QP09065',n:'AQUABASE HP.A',l:'5451036',q:150},
+      {c:'QP09265',n:'ANIONIC POLYMER',l:'5451037',q:125},{c:'QP09270',n:'ANTIFOAM PB02',l:'5451038',q:775},
+      {c:'QP09278',n:'POLYPROPYLENE AMINE PAM',l:'5451039',q:100}
+    ],
+    PTA:[
+      {c:'QM04291',n:'SADEPE PE',q:405},{c:'QM04294',n:'SADEDULLER DW',q:492},
+      {c:'QM04436',n:'SADE WHITE TP',q:760},{c:'QM04461',n:'SADE WHITE 2059',q:91},
+      {c:'QM05350',n:'SADELACQUER CWB',q:408},{c:'QM06517',n:'SADE VM',q:170.6},
+      {c:'QM06827',n:'SADE WHITE 443',q:278.5},{c:'QM07694',n:'SADESIL PM',q:37.5},
+      {c:'QP02050',n:'AMMONIA WATER 24%',q:14.3},{c:'QP03290',n:'TITEKOTE RI-115',q:768},
+      {c:'QP04172',n:'ASTACIN GROUND UH TF',q:474.75},{c:'QP05482',n:'EUDERM FIX EP',q:43},
+      {c:'QP05490',n:'DENSOTAN A',q:53},{c:'QP05883',n:'PM',q:104},
+      {c:'QP06007',n:'PRIMAL FGR EMULSION',q:154},{c:'QP06444',n:'PRIMAL SCL-371 EMULSION',q:1050},
+      {c:'QP06659',n:'RODA PURE LUSTER 1430',q:39},{c:'QP06933',n:'RODA PURE PREBASE 772',q:36},
+      {c:'QP07006',n:'MELIO PROMUL CU-47.A LIQ',q:127},{c:'QP07205',n:'RODA CRYL 5416',q:162},
+      {c:'QP07806',n:'EUDERM X-GRADE MP 2/N',q:22},{c:'QP08234',n:'UNIRES RU-13-134',q:501.75},
+      {c:'QP08324',n:'UNIRES RU-76-125',q:129},{c:'QP08326',n:'TITEKOTE RI-78-060',q:117},
+      {c:'QP08377',n:'EUDERM X-GRADE FH/N',q:431},{c:'QP08478',n:'EUDERM NAPPA SOFT MF',q:220},
+      {c:'QP08497',n:'RH-6678',q:105},{c:'QP08551',n:'WT-72-500',q:78},
+      {c:'QP08557',n:'XR-13-906',q:64},{c:'QP08558',n:'UNIRES RU-13-734',q:498},
+      {c:'QP08854',n:'REGEL PU-301',q:36},{c:'QP08901',n:'RODA CRYL 5748',q:79},
+      {c:'QP08914',n:'RODA WAX MONO',q:30}
+    ],
+    EFL:[
+      {c:'QP02075',n:'CALCIUM HYDROXIDE',q:93},{c:'QP02289',n:'SODIUM HYPOCHLORITE 100 g/l.',q:1032},
+      {c:'QP05767',n:'CAUSTIC SODA 32% SOLUTION',q:1192},{c:'QP06222',n:'ALUMINIUM SULPHATE LIQ 8%',q:1069},
+      {c:'QP09265',n:'ANIONIC POLYMER',q:24},{c:'QP09266',n:'CATIONIC POLYMER',q:12},
+      {c:'QP09268',n:'DISODIUM HYDROGEN PHOSPHATE',q:14},{c:'QP09270',n:'ANTIFOAM PB02',q:200},
+      {c:'QP09273',n:'POLYALUMINIUM CHLORIDE SOLUTIO',q:707}
+    ]
+  };
+  return (data[wh] || []).map(r => ({
+    session_id: sessionId, item_code: r.c, item_name: r.n,
+    warehouse_code: wh, qty_system: r.q,
+    qty_counted: null, note: null, is_deleted: false,
+    lot_number: (wh === 'DEP' && r.l) ? r.l : null
+  }));
+}
+
+// =============================================
+// COUNT PAGE
+// =============================================
+async function loadCountPage(sessionId) {
+  showPage('count');
+  const { data: session } = await sb.from('cycle_count_sessions').select('*').eq('id', sessionId).single();
+  currentSession = session;
+  const whBadge = { DEP:'badge-dep', PTA:'badge-pta', EFL:'badge-efl' };
+  document.getElementById('count-title').textContent = `Kiểm kê kho ${session.warehouse_code}`;
+  document.getElementById('count-subtitle').textContent = `Ngày ${formatDate(session.count_date)} · Người đếm: ${session.created_by_name}`;
+  document.getElementById('count-header-right').innerHTML =
+    `<span class="badge ${whBadge[session.warehouse_code]||'badge-dep'}">${session.warehouse_code}</span>
+     <span class="badge badge-progress">🔄 Đang thực hiện</span>`;
+
+  const { data: lines } = await sb.from('cycle_count_lines').select('*').eq('session_id', sessionId).order('item_code');
+  allCountLines = lines || [];
+  countLines = allCountLines.filter(l => !l.is_deleted);
+
+  // Initialize PTA locations from saved note data
+  ptaLocations = {};
+  if (session.warehouse_code === 'PTA') {
+    allCountLines.forEach(l => {
+      if (l.note) {
+        try {
+          const parsed = JSON.parse(l.note);
+          if (parsed.locations && Array.isArray(parsed.locations)) {
+            ptaLocations[l.id] = parsed.locations;
+          }
+        } catch(e) { /* not JSON, just text note */ }
+      }
+    });
+  }
+
+  renderCountTable();
+}
+
+// =============================================
+// RENDER COUNT TABLE — DEP (Checkbox) vs PTA (Accumulation)
+// =============================================
+function renderCountTable() {
+  const wrap = document.getElementById('count-table-wrap');
+  const visible = countLines;
+
+  if (!visible.length) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><p>Không có hóa chất</p></div>'; return; }
+
+  const active = allCountLines.filter(l => !l.is_deleted);
+  const isDepMode = currentSession && currentSession.warehouse_code === 'DEP';
+  const isPtaMode = currentSession && currentSession.warehouse_code === 'PTA';
+
+  // Count done items
+  let done;
+  if (isDepMode) {
+    done = active.filter(l => l.qty_counted !== null).length;
+  } else {
+    done = active.filter(l => l.qty_counted !== null).length;
+  }
+  const pct = active.length > 0 ? Math.round(done / active.length * 100) : 0;
+  document.getElementById('count-progress-bar').style.width = pct + '%';
+  document.getElementById('count-progress-text').textContent = `${done}/${active.length} đã nhập (${pct}%)`;
+  document.getElementById('count-action-info').textContent = `${active.length - done} dòng chưa nhập`;
+  document.getElementById('count-filter-info').textContent = visible.length < active.length ? `Đang lọc: ${visible.length}/${active.length} dòng` : `${active.length} hóa chất`;
+  document.getElementById('btn-complete').disabled = done < active.length || active.length === 0;
+
+  if (isDepMode) {
+    renderDepTable(visible);
+  } else if (isPtaMode) {
+    renderPtaTable(visible);
+  } else {
+    renderDefaultTable(visible);
+  }
+}
+
+// ═══════════ DEP TABLE — CHECKBOX MODE ═══════════
+function renderDepTable(visible) {
+  const wrap = document.getElementById('count-table-wrap');
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th style="width:40px">#</th>
+      <th>Mã HH</th><th>Tên hóa chất</th>
+      <th>Lot</th>
+      <th class="text-right">Tồn HT (kg)</th>
+      <th class="text-center" style="width:100px">Có hàng</th>
+      <th style="min-width:200px">Ghi chú</th>
+      <th class="no-print" style="width:44px"></th>
+    </tr></thead>
+    <tbody>
+    ${visible.map((l, i) => {
+      const isChecked = l.qty_counted !== null && l.qty_counted > 0;
+      return `
+      <tr id="row-${l.id}" style="${isChecked ? 'background:#f0fdf4' : ''}">
+        <td class="text-muted text-sm">${i+1}</td>
+        <td class="font-mono text-sm" style="font-weight:600">${l.item_code}</td>
+        <td style="max-width:200px;line-height:1.4">${l.item_name}</td>
+        <td class="font-mono text-sm">${l.lot_number||'—'}</td>
+        <td class="text-right font-mono" style="font-weight:600">${fmt(l.qty_system)}</td>
+        <td class="text-center">
+          <div class="toggle-wrap">
+            <label class="toggle-switch">
+              <input type="checkbox" data-id="${l.id}" ${isChecked?'checked':''} onchange="onDepToggle(this, '${l.id}')" />
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label ${isChecked?'label-yes':'label-no'}" id="toggle-lbl-${l.id}">${isChecked?'✅ Có':'Không'}</span>
+          </div>
+        </td>
+        <td>
+          <input type="text" style="width:100%;font-size:12px" placeholder="Ghi chú..."
+            data-note-id="${l.id}" value="${l.note || ''}" />
+        </td>
+        <td class="no-print">
+          <button class="btn btn-ghost btn-sm" onclick="deleteLine('${l.id}')" title="Xóa khỏi danh sách">🗑</button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+function onDepToggle(el, id) {
+  const line = allCountLines.find(l => l.id === id);
+  if (!line) return;
+  if (el.checked) {
+    line.qty_counted = line.qty_system; // Set as matched
+  } else {
+    line.qty_counted = 0; // Not found
+  }
+  const lbl = document.getElementById('toggle-lbl-' + id);
+  if (lbl) {
+    lbl.textContent = el.checked ? '✅ Có' : 'Không';
+    lbl.className = 'toggle-label ' + (el.checked ? 'label-yes' : 'label-no');
+  }
+  const row = document.getElementById('row-' + id);
+  if (row) row.style.background = el.checked ? '#f0fdf4' : '';
+  updateProgress();
+}
+
+// ═══════════ PTA TABLE — ACCUMULATION MODE ═══════════
+function renderPtaTable(visible) {
+  const wrap = document.getElementById('count-table-wrap');
+  let html = `<table>
+    <thead><tr>
+      <th style="width:40px">#</th>
+      <th>Mã HH</th><th>Tên hóa chất</th>
+      <th class="text-right">Tồn HT (kg)</th>
+      <th class="text-right" style="min-width:130px">Thực tế (kg)</th>
+      <th class="text-center no-print" style="width:90px">Vị trí</th>
+      <th class="text-right" style="min-width:90px">Chênh lệch</th>
+      <th class="text-right" style="min-width:65px">%</th>
+      <th style="min-width:140px">Ghi chú</th>
+      <th class="no-print" style="width:44px"></th>
+    </tr></thead>
+    <tbody>`;
+
+  visible.forEach((l, i) => {
+    const locs = ptaLocations[l.id] || [];
+    const hasLocs = locs.length > 0;
+    const totalFromLocs = hasLocs ? locs.reduce((s, loc) => s + (parseFloat(loc.qty) || 0), 0) : null;
+    const displayQty = hasLocs ? totalFromLocs : l.qty_counted;
+    const v = displayQty !== null ? displayQty - l.qty_system : null;
+
+    html += `
+    <tr id="row-${l.id}">
+      <td class="text-muted text-sm">${i+1}</td>
+      <td class="font-mono text-sm" style="font-weight:600">${l.item_code}</td>
+      <td style="max-width:200px;line-height:1.4">${l.item_name}</td>
+      <td class="text-right font-mono" style="font-weight:600">${fmt(l.qty_system)}</td>
+      <td class="text-right">
+        ${hasLocs
+          ? `<span class="sum-display" id="sum-${l.id}">${fmt(totalFromLocs)}</span>`
+          : `<input type="number" step="0.001" min="0"
+              class="count-input ${l.qty_counted !== null ? 'filled' : ''}"
+              value="${l.qty_counted !== null ? l.qty_counted : ''}"
+              placeholder="0.000"
+              data-id="${l.id}"
+              oninput="onPtaInput(this, '${l.id}')"
+            />`
+        }
+      </td>
+      <td class="text-center no-print">
+        <button class="btn-add-loc" onclick="toggleLocations('${l.id}')" title="Thêm/xem vị trí">
+          ${hasLocs ? `📍 ${locs.length}` : '➕ Vị trí'}
+        </button>
+      </td>
+      <td class="text-right font-mono" id="var-${l.id}" style="min-width:80px">
+        ${v !== null ? fmtVar(v) : '—'}
+      </td>
+      <td class="text-right font-mono" id="varpct-${l.id}" style="min-width:60px">
+        ${v !== null && l.qty_system !== 0 ? fmtPct(v / l.qty_system * 100) : '—'}
+      </td>
+      <td>
+        <input type="text" style="width:100%;font-size:12px" placeholder="Ghi chú..."
+          data-textnote-id="${l.id}" value="${getPtaTextNote(l)}" />
+      </td>
+      <td class="no-print">
+        <button class="btn btn-ghost btn-sm" onclick="deleteLine('${l.id}')" title="Xóa khỏi danh sách">🗑</button>
+      </td>
+    </tr>`;
+
+    // Sub-rows for locations
+    if (hasLocs) {
+      const colSpan = 10;
+      html += `<tr class="sub-row-container" id="sublocs-${l.id}">
+        <td colspan="${colSpan}">
+          <div class="sub-rows-inner" id="sublocs-inner-${l.id}">
+            ${locs.map((loc, li) => renderSubRow(l.id, li, loc, locs.length)).join('')}
+            <button class="btn-add-loc" onclick="addLocation('${l.id}')" style="margin-top:4px">
+              ➕ Thêm vị trí
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function renderSubRow(lineId, index, loc, total) {
+  const connector = index === total - 1 ? '└' : '├';
+  return `<div class="sub-row-item" id="subrow-${lineId}-${index}">
+    <span class="sub-connector">${connector}</span>
+    <input type="text" class="loc-input" placeholder="Vị trí..." value="${loc.name || ''}"
+      oninput="onLocChange('${lineId}', ${index}, 'name', this.value)" />
+    <input type="number" step="0.001" min="0" class="qty-input" placeholder="kg"
+      value="${loc.qty || ''}"
+      oninput="onLocChange('${lineId}', ${index}, 'qty', this.value)" />
+    <span style="font-size:11px;color:var(--text-3)">kg</span>
+    <button class="btn-remove-loc" onclick="removeLocation('${lineId}', ${index})" title="Xóa vị trí">✕</button>
+  </div>`;
+}
+
+function getPtaTextNote(line) {
+  if (!line.note) return '';
+  try {
+    const parsed = JSON.parse(line.note);
+    return parsed.text || '';
+  } catch(e) {
+    return line.note || '';
+  }
+}
+
+function toggleLocations(lineId) {
+  if (!ptaLocations[lineId]) {
+    ptaLocations[lineId] = [{ name: '', qty: '' }];
+    // Copy existing qty_counted as first location
+    const line = allCountLines.find(l => l.id === lineId);
+    if (line && line.qty_counted !== null && line.qty_counted > 0) {
+      ptaLocations[lineId][0].qty = line.qty_counted;
+    }
+  } else if (ptaLocations[lineId].length === 0) {
+    ptaLocations[lineId].push({ name: '', qty: '' });
+  }
+  renderCountTable();
+}
+
+function addLocation(lineId) {
+  if (!ptaLocations[lineId]) ptaLocations[lineId] = [];
+  if (ptaLocations[lineId].length >= 10) {
+    showToast('Tối đa 10 vị trí cho mỗi hóa chất', 'info');
+    return;
+  }
+  ptaLocations[lineId].push({ name: '', qty: '' });
+  renderCountTable();
+}
+
+function removeLocation(lineId, index) {
+  if (!ptaLocations[lineId]) return;
+  ptaLocations[lineId].splice(index, 1);
+  if (ptaLocations[lineId].length === 0) {
+    delete ptaLocations[lineId];
+    // Reset qty_counted
+    const line = allCountLines.find(l => l.id === lineId);
+    if (line) line.qty_counted = null;
+  } else {
+    recalcPtaSum(lineId);
+  }
+  renderCountTable();
+}
+
+function onLocChange(lineId, index, field, value) {
+  if (!ptaLocations[lineId] || !ptaLocations[lineId][index]) return;
+  ptaLocations[lineId][index][field] = field === 'qty' ? value : value;
+  if (field === 'qty') {
+    recalcPtaSum(lineId);
+  }
+}
+
+function recalcPtaSum(lineId) {
+  const locs = ptaLocations[lineId] || [];
+  const total = locs.reduce((s, loc) => s + (parseFloat(loc.qty) || 0), 0);
+  const line = allCountLines.find(l => l.id === lineId);
+  if (line) {
+    line.qty_counted = Math.round(total * 1000) / 1000;
+    // Update DOM
+    const sumEl = document.getElementById('sum-' + lineId);
+    if (sumEl) sumEl.textContent = fmt(total);
+    const varEl = document.getElementById('var-' + lineId);
+    const pctEl = document.getElementById('varpct-' + lineId);
+    if (varEl) {
+      const v = total - line.qty_system;
+      varEl.innerHTML = fmtVar(v);
+      if (pctEl) pctEl.innerHTML = line.qty_system !== 0 ? fmtPct(v / line.qty_system * 100) : '—';
+    }
+  }
+  updateProgress();
+}
+
+function onPtaInput(el, id) {
+  el.classList.toggle('filled', el.value !== '');
+  const line = allCountLines.find(l => l.id === id);
+  const val = el.value !== '' ? parseFloat(el.value) : null;
+  if (line) line.qty_counted = val;
+  const varEl = document.getElementById('var-' + id);
+  const pctEl = document.getElementById('varpct-' + id);
+  if (varEl && line) {
+    if (val !== null) {
+      const v = val - line.qty_system;
+      varEl.innerHTML = fmtVar(v);
+      pctEl.innerHTML = line.qty_system !== 0 ? fmtPct(v / line.qty_system * 100) : '—';
+    } else {
+      varEl.innerHTML = '—';
+      pctEl.innerHTML = '—';
+    }
+  }
+  updateProgress();
+}
+
+// ═══════════ DEFAULT TABLE (EFL or fallback) ═══════════
+function renderDefaultTable(visible) {
+  const wrap = document.getElementById('count-table-wrap');
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th style="width:40px">#</th>
+      <th>Mã HH</th><th>Tên hóa chất</th>
+      <th class="text-right">Tồn HT (kg)</th>
+      <th class="text-right">Thực tế (kg)</th>
+      <th class="text-right">Chênh lệch</th>
+      <th class="text-right">%</th>
+      <th>Ghi chú</th>
+      <th class="no-print" style="width:44px"></th>
+    </tr></thead>
+    <tbody>
+    ${visible.map((l, i) => `
+      <tr id="row-${l.id}">
+        <td class="text-muted text-sm">${i+1}</td>
+        <td class="font-mono text-sm" style="font-weight:600">${l.item_code}</td>
+        <td style="max-width:200px;line-height:1.4">${l.item_name}</td>
+        <td class="text-right font-mono" style="font-weight:600">${fmt(l.qty_system)}</td>
+        <td class="text-right">
+          <input type="number" step="0.001" min="0"
+            class="count-input ${l.qty_counted !== null ? 'filled' : ''}"
+            value="${l.qty_counted !== null ? l.qty_counted : ''}"
+            placeholder="0.000"
+            data-id="${l.id}"
+            oninput="onDefaultInput(this, '${l.id}')"
+          />
+        </td>
+        <td class="text-right font-mono" id="var-${l.id}" style="min-width:80px">
+          ${l.qty_counted !== null ? fmtVar(l.qty_counted - l.qty_system) : '—'}
+        </td>
+        <td class="text-right font-mono" id="varpct-${l.id}" style="min-width:60px">
+          ${l.qty_counted !== null && l.qty_system !== 0 ? fmtPct((l.qty_counted - l.qty_system) / l.qty_system * 100) : '—'}
+        </td>
+        <td>
+          <input type="text" style="width:120px;font-size:12px" placeholder="Ghi chú..."
+            data-note-id="${l.id}" value="${l.note || ''}" />
+        </td>
+        <td class="no-print">
+          <button class="btn btn-ghost btn-sm" onclick="deleteLine('${l.id}')" title="Xóa khỏi danh sách">🗑</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function onDefaultInput(el, id) {
+  el.classList.toggle('filled', el.value !== '');
+  const line = allCountLines.find(l => l.id === id);
+  const val = el.value !== '' ? parseFloat(el.value) : null;
+  if (line) line.qty_counted = val;
+  const varEl = document.getElementById('var-' + id);
+  const pctEl = document.getElementById('varpct-' + id);
+  if (varEl && line) {
+    if (val !== null) {
+      const v = val - line.qty_system;
+      varEl.innerHTML = fmtVar(v);
+      pctEl.innerHTML = line.qty_system !== 0 ? fmtPct(v / line.qty_system * 100) : '—';
+    } else {
+      varEl.innerHTML = '—';
+      pctEl.innerHTML = '—';
+    }
+  }
+  updateProgress();
+}
+
+// =============================================
+// PROGRESS, DELETE, FILTER, SAVE
+// =============================================
+function updateProgress() {
+  const active = allCountLines.filter(l => !l.is_deleted);
+  const done = active.filter(l => l.qty_counted !== null).length;
+  const pct = active.length > 0 ? Math.round(done / active.length * 100) : 0;
+  document.getElementById('count-progress-bar').style.width = pct + '%';
+  document.getElementById('count-progress-text').textContent = `${done}/${active.length} đã nhập (${pct}%)`;
+  document.getElementById('count-action-info').textContent = `${active.length - done} dòng chưa nhập`;
+  document.getElementById('btn-complete').disabled = done < active.length || active.length === 0;
+}
+
+async function deleteLine(id) {
+  if (!confirm('Xóa hóa chất này khỏi danh sách kiểm kê?\n(Không thể hoàn tác)')) return;
+  const { error } = await sb.from('cycle_count_lines').update({ is_deleted: true }).eq('id', id);
+  if (error) { showToast('Lỗi: ' + error.message, 'error'); return; }
+  const line = allCountLines.find(l => l.id === id);
+  if (line) { line.is_deleted = true; line.qty_counted = null; }
+  if (ptaLocations[id]) delete ptaLocations[id];
+  countLines = allCountLines.filter(l => !l.is_deleted && lineMatchesSearch(l));
+  renderCountTable();
+  showToast('Đã xóa dòng', 'info');
+}
+
+function lineMatchesSearch(l) {
+  const q = document.getElementById('count-search')?.value?.toLowerCase() || '';
+  if (!q) return true;
+  return l.item_code.toLowerCase().includes(q) || l.item_name.toLowerCase().includes(q);
+}
+
+function filterCountLines() {
+  const q = document.getElementById('count-search').value.toLowerCase();
+  const active = allCountLines.filter(l => !l.is_deleted);
+  countLines = q ? active.filter(l => l.item_code.toLowerCase().includes(q) || l.item_name.toLowerCase().includes(q)) : active;
+  renderCountTable();
+}
+
+function collectFromDOM() {
+  const isDepMode = currentSession && currentSession.warehouse_code === 'DEP';
+  const isPtaMode = currentSession && currentSession.warehouse_code === 'PTA';
+
+  if (isDepMode) {
+    // DEP: collect checkbox state + notes
+    document.querySelectorAll('.toggle-switch input[type=checkbox]').forEach(el => {
+      const line = allCountLines.find(l => l.id === el.dataset.id);
+      if (line) {
+        line.qty_counted = el.checked ? line.qty_system : 0;
+      }
+    });
+    document.querySelectorAll('[data-note-id]').forEach(el => {
+      const line = allCountLines.find(l => l.id === el.dataset.noteId);
+      if (line) line.note = el.value || null;
+    });
+  } else if (isPtaMode) {
+    // PTA: collect regular inputs + sub-location data
+    document.querySelectorAll('.count-input').forEach(el => {
+      const line = allCountLines.find(l => l.id === el.dataset.id);
+      if (line && !ptaLocations[el.dataset.id]) {
+        line.qty_counted = el.value !== '' ? parseFloat(el.value) : null;
+      }
+    });
+    // Recalculate sums for lines with locations
+    Object.keys(ptaLocations).forEach(lineId => {
+      recalcPtaSum(lineId);
+    });
+    // Serialize location data + text notes into note field
+    allCountLines.forEach(l => {
+      const locs = ptaLocations[l.id];
+      const textNoteEl = document.querySelector(`[data-textnote-id="${l.id}"]`);
+      const textNote = textNoteEl ? textNoteEl.value : '';
+
+      if (locs && locs.length > 0) {
+        l.note = JSON.stringify({ locations: locs, text: textNote || '' });
+      } else {
+        // For lines without locations, use data-note-id or data-textnote-id
+        const noteEl = document.querySelector(`[data-note-id="${l.id}"]`) || document.querySelector(`[data-textnote-id="${l.id}"]`);
+        l.note = noteEl ? (noteEl.value || null) : l.note;
+      }
+    });
+  } else {
+    // Default
+    document.querySelectorAll('.count-input').forEach(el => {
+      const line = allCountLines.find(l => l.id === el.dataset.id);
+      if (line) line.qty_counted = el.value !== '' ? parseFloat(el.value) : null;
+    });
+    document.querySelectorAll('[data-note-id]').forEach(el => {
+      const line = allCountLines.find(l => l.id === el.dataset.noteId);
+      if (line) line.note = el.value || null;
+    });
+  }
+}
+
+async function saveDraft() {
+  collectFromDOM();
+  const btn = document.getElementById('btn-save-draft');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Đang lưu...';
+  let ok = true;
+  for (const l of allCountLines) {
+    const { error } = await sb.from('cycle_count_lines').update({ qty_counted: l.qty_counted, note: l.note, is_deleted: l.is_deleted }).eq('id', l.id);
+    if (error) { ok = false; break; }
+  }
+  btn.disabled = false; btn.innerHTML = '💾 Lưu nháp';
+  if (ok) {
+    showToast('Đã lưu nháp thành công!', 'success');
+  } else {
+    showToast('Lỗi khi lưu nháp', 'error');
+  }
+}
+
+function confirmComplete() { openModal('modal-complete'); }
+
+async function completeSession() {
+  collectFromDOM();
+  for (const l of allCountLines) {
+    await sb.from('cycle_count_lines').update({ qty_counted: l.qty_counted, note: l.note, is_deleted: l.is_deleted }).eq('id', l.id);
+  }
+  await sb.from('cycle_count_sessions').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', currentSession.id);
+  closeModal('modal-complete');
+  showToast('Kiểm kê đã hoàn tất!', 'success');
+  await loadResult(currentSession.id);
+}
+
+// =============================================
+// RESULT PAGE
+// =============================================
+async function loadResult(sessionId) {
+  showPage('result');
+  const { data: session } = await sb.from('cycle_count_sessions').select('*').eq('id', sessionId).single();
+  currentSession = session;
+  const { data: lines } = await sb.from('cycle_count_lines').select('*').eq('session_id', sessionId).eq('is_deleted', false).order('item_code');
+  allCountLines = lines || [];
+
+  const isDepResult = session.warehouse_code === 'DEP';
+  const isPtaResult = session.warehouse_code === 'PTA';
+  window._resultIsDepMode = isDepResult;
+  window._resultIsPtaMode = isPtaResult;
+
+  const whBadge = { DEP:'badge-dep', PTA:'badge-pta', EFL:'badge-efl' };
+  document.getElementById('result-info').innerHTML = `
+    <span class="badge ${whBadge[session.warehouse_code]||'badge-dep'}" style="font-size:13px;padding:5px 14px">${session.warehouse_code}</span>
+    <span><strong>📅</strong> ${formatDate(session.count_date)}</span>
+    <span><strong>👤</strong> ${session.created_by_name||'N/A'}</span>
+    <span><strong>⏱</strong> ${session.completed_at ? formatDateTime(session.completed_at) : '—'}</span>
+    ${session.note?`<span style="color:var(--text-2)">📝 ${session.note}</span>`:''}`;
+
+  if (isDepResult) {
+    renderDepResult(lines);
+  } else {
+    renderStandardResult(lines, isPtaResult);
+  }
+}
+
+function renderDepResult(lines) {
+  const found = lines.filter(l => l.qty_counted > 0);
+  const notFound = lines.filter(l => l.qty_counted === 0 || l.qty_counted === null);
+
+  document.getElementById('result-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-val" style="color:var(--primary)">${lines.length}</div><div class="stat-label">Tổng dòng</div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-val" style="color:var(--success)">${found.length}</div><div class="stat-label">Có hàng</div></div>
+    <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-val" style="color:var(--danger)">${notFound.length}</div><div class="stat-label">Không tìm thấy</div></div>
+    <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-val" style="font-size:18px;padding-top:4px;color:var(--warning)">${lines.length > 0 ? Math.round(found.length / lines.length * 100) : 0}%</div><div class="stat-label">Tỷ lệ có hàng</div></div>`;
+
+  document.getElementById('variance-count').textContent = `${notFound.length} không tìm thấy`;
+  document.getElementById('matched-count').textContent = `${found.length} có hàng`;
+
+  document.getElementById('result-all-head').innerHTML =
+    '<th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th><th>Lot</th>' +
+    '<th class="text-right">Tồn HT (kg)</th><th class="text-center">Có hàng</th><th>Ghi chú</th>';
+
+  const whBadge = { DEP:'badge-dep', PTA:'badge-pta', EFL:'badge-efl' };
+  document.getElementById('result-all-body').innerHTML = lines.length === 0
+    ? `<tr><td colspan="7" class="text-center text-muted" style="padding:24px">Không có dữ liệu</td></tr>`
+    : lines.map(l => {
+        const isFound = l.qty_counted > 0;
+        const rowBg = isFound ? '' : 'background:#fef2f2';
+        return `<tr style="${rowBg}">
+          <td class="font-mono text-sm" style="font-weight:600">${l.item_code}</td>
+          <td>${l.item_name}</td>
+          <td><span class="badge ${whBadge[l.warehouse_code]||'badge-dep'}">${l.warehouse_code||''}</span></td>
+          <td class="font-mono text-sm">${l.lot_number||'—'}</td>
+          <td class="text-right font-mono" style="font-weight:600">${fmt(l.qty_system)}</td>
+          <td class="text-center">
+            <span style="font-size:16px">${isFound ? '✅' : '❌'}</span>
+            <span style="font-size:11px;color:${isFound ? 'var(--success)' : 'var(--danger)'};font-weight:600;margin-left:4px">${isFound ? 'Có' : 'Không'}</span>
+          </td>
+          <td class="text-sm text-muted">${l.note||'—'}</td>
+        </tr>`;
+      }).join('');
+}
+
+function renderStandardResult(lines, isPta) {
+  const variance = lines.filter(l => Math.abs((l.qty_counted||0) - l.qty_system) > 0.0005);
+  const matched = lines.filter(l => Math.abs((l.qty_counted||0) - l.qty_system) <= 0.0005);
+  const totalPos = variance.filter(l=>l.qty_counted>l.qty_system).reduce((s,l)=>s+(l.qty_counted-l.qty_system),0);
+  const totalNeg = variance.filter(l=>l.qty_counted<l.qty_system).reduce((s,l)=>s+(l.qty_system-l.qty_counted),0);
+
+  document.getElementById('result-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-val" style="color:var(--primary)">${lines.length}</div><div class="stat-label">Tổng dòng</div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-val" style="color:var(--success)">${matched.length}</div><div class="stat-label">Khớp</div></div>
+    <div class="stat-card"><div class="stat-icon">⚠️</div><div class="stat-val" style="color:var(--danger)">${variance.length}</div><div class="stat-label">Chênh lệch</div></div>
+    <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-val" style="font-size:16px;padding-top:4px;color:var(--warning)">+${fmt(totalPos)}<br>-${fmt(totalNeg)}</div><div class="stat-label">Chênh lệch (kg)</div></div>`;
+
+  document.getElementById('variance-count').textContent = `${variance.length} chênh lệch`;
+  document.getElementById('matched-count').textContent = `${matched.length} khớp`;
+
+  const ptaExtraCol = isPta ? '<th>Chi tiết vị trí</th>' : '';
+  document.getElementById('result-all-head').innerHTML =
+    '<th>Mã HH</th><th>Tên hóa chất</th><th>Kho</th>' +
+    '<th class="text-right">Tồn HT (kg)</th><th class="text-right">Thực tế (kg)</th>' +
+    '<th class="text-right">Chênh lệch</th><th class="text-right">%</th>' +
+    ptaExtraCol + '<th>Ghi chú</th>';
+
+  const whBadge = { DEP:'badge-dep', PTA:'badge-pta', EFL:'badge-efl' };
+  document.getElementById('result-all-body').innerHTML = lines.length === 0
+    ? `<tr><td colspan="${isPta ? 9 : 8}" class="text-center text-muted" style="padding:24px">Không có dữ liệu</td></tr>`
+    : lines.map(l => {
+        const v = (l.qty_counted||0) - l.qty_system;
+        const pct = l.qty_system !== 0 ? (v / l.qty_system * 100) : null;
+        const isMatch = Math.abs(v) <= 0.0005;
+        const vCls = isMatch ? 'variance-zero' : v > 0 ? 'variance-pos' : 'variance-neg';
+        const rowBg = isMatch ? '' : (v < 0 ? 'background:#fef2f2' : 'background:#f0fdf4');
+
+        let locDetail = '';
+        let textNote = l.note || '—';
+        if (isPta && l.note) {
+          try {
+            const parsed = JSON.parse(l.note);
+            if (parsed.locations && parsed.locations.length > 0) {
+              locDetail = parsed.locations.map(loc => `${loc.name || '?'}: ${fmt(loc.qty)} kg`).join(' · ');
+              textNote = parsed.text || '—';
+            }
+          } catch(e) { /* not JSON */ }
+        }
+
+        return `<tr style="${rowBg}">
+          <td class="font-mono text-sm" style="font-weight:600">${l.item_code}</td>
+          <td>${l.item_name}</td>
+          <td><span class="badge ${whBadge[l.warehouse_code]||'badge-dep'}">${l.warehouse_code||''}</span></td>
+          <td class="text-right font-mono">${fmt(l.qty_system)}</td>
+          <td class="text-right font-mono" style="font-weight:600">${fmt(l.qty_counted)}</td>
+          <td class="text-right font-mono"><span class="${vCls}">${isMatch ? '✓' : (v>0?'+':'')+fmt(v)}</span></td>
+          <td class="text-right font-mono"><span class="${vCls}">${isMatch ? '—' : (pct!==null ? (pct>0?'+':'')+pct.toFixed(1)+'%' : '—')}</span></td>
+          ${isPta ? `<td class="text-sm" style="color:var(--primary);max-width:200px">${locDetail || '—'}</td>` : ''}
+          <td class="text-sm text-muted">${textNote}</td>
+        </tr>`;
+      }).join('');
+}
+
+// =============================================
+// EXPORT EXCEL
+// =============================================
+async function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const isDepExp = window._resultIsDepMode;
+  const isPtaExp = window._resultIsPtaMode;
+
+  let hdrs, toRow;
+  if (isDepExp) {
+    hdrs = ['Mã HH','Tên hóa chất','Kho','Lot','Tồn HT (kg)','Có hàng','Ghi chú'];
+    toRow = l => [
+      l.item_code, l.item_name, l.warehouse_code||'', l.lot_number||'',
+      l.qty_system,
+      (l.qty_counted > 0) ? 'Có' : 'Không',
+      l.note || ''
+    ];
+  } else if (isPtaExp) {
+    hdrs = ['Mã HH','Tên hóa chất','Kho','Tồn HT (kg)','Thực tế (kg)','Chênh lệch (kg)','Chênh lệch (%)','Chi tiết vị trí','Ghi chú'];
+    toRow = l => {
+      const diff = l.qty_counted != null ? (l.qty_counted - l.qty_system) : '';
+      const pct = l.qty_counted != null && l.qty_system !== 0 ? parseFloat(((l.qty_counted - l.qty_system) / l.qty_system * 100).toFixed(2)) : '';
+      let locDetail = '', textNote = l.note || '';
+      if (l.note) {
+        try {
+          const parsed = JSON.parse(l.note);
+          if (parsed.locations) locDetail = parsed.locations.map(loc => `${loc.name||'?'}: ${loc.qty} kg`).join(' | ');
+          textNote = parsed.text || '';
+        } catch(e) {}
+      }
+      return [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, locDetail, textNote];
+    };
+  } else {
+    hdrs = ['Mã HH','Tên hóa chất','Kho','Tồn HT (kg)','Thực tế (kg)','Chênh lệch (kg)','Chênh lệch (%)','Ghi chú'];
+    toRow = l => {
+      const diff = l.qty_counted != null ? (l.qty_counted - l.qty_system) : '';
+      const pct = l.qty_counted != null && l.qty_system !== 0 ? parseFloat(((l.qty_counted - l.qty_system) / l.qty_system * 100).toFixed(2)) : '';
+      return [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, l.note||''];
+    };
+  }
+
+  const ws1 = XLSX.utils.aoa_to_sheet([hdrs, ...allCountLines.map(toRow)]);
+  ws1['!cols'] = hdrs.map((h,i) => ({ wch: i === 1 ? 30 : i === 7 ? 25 : 14 }));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Tất cả');
+
+  // Sheet 2: chênh lệch only (skip for DEP)
+  if (!isDepExp) {
+    const varianceLines = allCountLines.filter(l => Math.abs((l.qty_counted||0) - l.qty_system) > 0.0005);
+    if (varianceLines.length > 0) {
+      const ws2 = XLSX.utils.aoa_to_sheet([hdrs, ...varianceLines.map(toRow)]);
+      ws2['!cols'] = ws1['!cols'];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Chênh lệch');
+    }
+  } else {
+    // DEP: sheet for "Không tìm thấy"
+    const notFoundLines = allCountLines.filter(l => !l.qty_counted || l.qty_counted === 0);
+    if (notFoundLines.length > 0) {
+      const ws2 = XLSX.utils.aoa_to_sheet([hdrs, ...notFoundLines.map(toRow)]);
+      ws2['!cols'] = ws1['!cols'];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Không tìm thấy');
+    }
+  }
+
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `CycleCount_${currentSession.warehouse_code}_${currentSession.count_date}_${ts}.xlsx`);
+  showToast('Đã xuất file Excel!', 'success');
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+  if (name === 'list') loadSessions();
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+function today() { return new Date().toISOString().split('T')[0]; }
+function formatDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+}
+function formatDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return `${formatDate(dt.toISOString().split('T')[0])} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+}
+function fmtVar(v) {
+  if (v === null || v === undefined) return '—';
+  const cls = Math.abs(v) < 0.0005 ? 'variance-zero' : v > 0 ? 'variance-pos' : 'variance-neg';
+  const sign = v > 0 ? '+' : '';
+  return `<span class="${cls}">${sign}${Number(v).toLocaleString('en-US',{minimumFractionDigits:3,maximumFractionDigits:3})}</span>`;
+}
+function fmtPct(p) {
+  if (p === null || p === undefined) return '—';
+  const cls = Math.abs(p) < 0.01 ? 'variance-zero' : p > 0 ? 'variance-pos' : 'variance-neg';
+  const sign = p > 0 ? '+' : '';
+  return `<span class="${cls}">${sign}${Number(p).toFixed(1)}%</span>`;
+}
+function fmt(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+document.querySelectorAll('.modal-overlay').forEach(el => el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); }));
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('auth-page').style.display !== 'none') login(); });
+</script>
+</body>
+</html>
