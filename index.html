@@ -1090,7 +1090,11 @@ function processXls(file) {
         const location = String(row[5] || '').trim();
         const qty = parseFloat(row[6]);
         if (!itemCode || !desc) continue;
-        if (!itemCode.match(/^(QP|QM)/)) continue;
+        
+        // Cập nhật logic: Nếu là kho PTA thì cho phép QP, QM và FT. Các kho khác chỉ lấy QP, QM.
+        const allowedPrefixes = (wh === 'PTA') ? /^(QP|QM|FT)/ : /^(QP|QM)/;
+        if (!itemCode.match(allowedPrefixes)) continue;
+        
         if (isNaN(qty) || qty <= 0) continue;
         const whMatch = location.match(/^(DEP|PTA|EFL)/);
         if (!whMatch) continue;
