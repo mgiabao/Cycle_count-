@@ -1497,13 +1497,24 @@ function renderSubRow(lineId, index, loc, total) {
   </div>`;
 }
 
+// Helper: parse PTA note (JSON hoặc plain text)
+function parsePtaNote(note) {
+  if (!note) return { text: '', locations: [] };
+  try {
+    const p = JSON.parse(note);
+    return { text: p.text || '', locations: p.locations || [] };
+  } catch(e) {
+    return { text: note, locations: [] }; // plain text
+  }
+}
+
 function getPtaTextNote(line) {
   if (!line.note) return '';
   try {
     const parsed = JSON.parse(line.note);
-    return parsed.text || '';
+    return parsed.text || ''; // JSON format: lấy field text
   } catch(e) {
-    return line.note || '';
+    return line.note || ''; // Plain text: trả thẳng
   }
 }
 
@@ -1737,11 +1748,11 @@ function collectFromDOM() {
       const textNote = textNoteEl ? textNoteEl.value : '';
 
       if (locs && locs.length > 0) {
+        // Có locations → lưu JSON {locations, text}
         l.note = JSON.stringify({ locations: locs, text: textNote || '' });
       } else {
-        // For lines without locations, use data-note-id or data-textnote-id
-        const noteEl = document.querySelector(`[data-note-id="${l.id}"]`) || document.querySelector(`[data-textnote-id="${l.id}"]`);
-        l.note = noteEl ? (noteEl.value || null) : l.note;
+        // Không có locations → lưu plain text
+        l.note = textNote || null;
       }
     });
   } else {
@@ -1809,6 +1820,23 @@ async function loadResult(sessionId) {
     <span><strong>👤</strong> ${session.created_by_name||'N/A'}</span>
     <span><strong>⏱</strong> ${session.completed_at ? formatDateTime(session.completed_at) : '—'}</span>
     ${session.note?`<span style="color:var(--text-2)">📝 ${session.note}</span>`:''}`;
+
+  // Rebuild ptaLocations từ note đã lưu (khi vào result không qua trang đếm)
+  if (isPtaResult) {
+    ptaLocations = {};
+    (lines || []).forEach(l => {
+      if (!l.note) return;
+      try {
+        const parsed = JSON.parse(l.note);
+        if (parsed.locations && Array.isArray(parsed.locations) && parsed.locations.length > 0) {
+          ptaLocations[l.id] = parsed.locations.map(loc => {
+            if (loc.kg !== undefined) return loc; // new format
+            return { kg: loc.qty || '', count: loc.qty ? 1 : '' }; // migrate old
+          });
+        }
+      } catch(e) {}
+    });
+  }
 
   if (isDepResult) {
     renderDepResult(lines);
@@ -1888,15 +1916,26 @@ function renderStandardResult(lines, isPta) {
         const rowBg = isMatch ? '' : (v < 0 ? 'background:#fef2f2' : 'background:#f0fdf4');
 
         let locDetail = '';
-        let textNote = l.note || '—';
-        if (isPta && l.note) {
-          try {
-            const parsed = JSON.parse(l.note);
-            if (parsed.locations && parsed.locations.length > 0) {
-              locDetail = parsed.locations.map(loc => `${loc.name || '?'}: ${fmt(loc.qty)} kg`).join(' · ');
-              textNote = parsed.text || '—';
-            }
-          } catch(e) { /* not JSON */ }
+        let textNote = '—';
+        if (isPta) {
+          // Ưu tiên ptaLocations trong memory (nếu đang trên trang đếm)
+          const memLocs = ptaLocations[l.id] || [];
+          if (memLocs.length > 0) {
+            locDetail = memLocs
+              .filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
+              .map(loc => `${parseInt(loc.count)} thùng ${parseFloat(loc.kg)}kg`)
+              .join(', ');
+            textNote = getPtaTextNote(l) || '—';
+          } else {
+            const parsed = parsePtaNote(l.note);
+            locDetail = parsed.locations
+              .filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
+              .map(loc => `${parseInt(loc.count)} thùng ${parseFloat(loc.kg)}kg`)
+              .join(', ');
+            textNote = parsed.text || '—';
+          }
+        } else {
+          textNote = l.note || '—';
         }
 
         return `<tr style="${rowBg}">
@@ -2014,21 +2053,13 @@ async function exportPDF() {
     rows = lines.map((l, i) => {
       const v   = l.qty_counted != null ? l.qty_counted - l.qty_system : null;
       const pct = v !== null && l.qty_system !== 0 ? v / l.qty_system * 100 : null;
-      const locs = ptaLocations[l.id] || [];
-      let detail = '';
-      if (locs.length > 0) {
-        detail = locs.filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
-          .map(loc => `${parseInt(loc.count)}x${parseFloat(loc.kg)}kg`).join('  ');
-      } else if (l.note) {
-        try {
-          const p = JSON.parse(l.note);
-          if (p.locations) detail = p.locations
-            .filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
-            .map(loc => `${parseInt(loc.count)}x${parseFloat(loc.kg)}kg`).join('  ');
-        } catch(e) {}
-      }
-      let textNote = l.note || '';
-      try { const p = JSON.parse(l.note); textNote = p.text || ''; } catch(e) {}
+      const memLocs6 = ptaLocations[l.id] || [];
+      const parsedNote6 = parsePtaNote(l.note);
+      const locsToUse6 = memLocs6.length > 0 ? memLocs6 : parsedNote6.locations;
+      const detail = locsToUse6
+        .filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
+        .map(loc => `${parseInt(loc.count)}x${parseFloat(loc.kg)}kg`).join('  ');
+      const textNote = memLocs6.length > 0 ? getPtaTextNote(l) : (parsedNote6.text || '');
       return {
         no: i+1, code: l.item_code, name: l.item_name,
         sys: Number(l.qty_system).toFixed(3),
@@ -2144,26 +2175,16 @@ async function exportExcel() {
       const diff = l.qty_counted != null ? (l.qty_counted - l.qty_system) : '';
       const pct = l.qty_counted != null && l.qty_system !== 0 ? parseFloat(((l.qty_counted - l.qty_system) / l.qty_system * 100).toFixed(2)) : '';
       // Build container detail string: "3 thùng 160kg, 1 thùng 50kg"
-      let containerDetail = '', textNote = l.note || '';
-      const locs = ptaLocations[l.id] || [];
-      if (locs.length > 0) {
-        containerDetail = locs
-          .filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
-          .map(loc => `${parseInt(loc.count)} thùng ${parseFloat(loc.kg)}kg`)
-          .join(', ');
-      } else if (l.note) {
-        try {
-          const parsed = JSON.parse(l.note);
-          if (parsed.locations) {
-            containerDetail = parsed.locations
-              .filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
-              .map(loc => `${parseInt(loc.count)} thùng ${parseFloat(loc.kg)}kg`)
-              .join(', ');
-          }
-          textNote = parsed.text || '';
-        } catch(e) {}
-      }
-      return [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, containerDetail, textNote];
+      // Ưu tiên ptaLocations memory, fallback về note đã lưu
+      const memLocs5 = ptaLocations[l.id] || [];
+      const parsedNote5 = parsePtaNote(l.note);
+      const locsToUse5 = memLocs5.length > 0 ? memLocs5 : parsedNote5.locations;
+      const containerDetail = locsToUse5
+        .filter(loc => parseFloat(loc.kg) > 0 && parseInt(loc.count) > 0)
+        .map(loc => `${parseInt(loc.count)} thùng ${parseFloat(loc.kg)}kg`)
+        .join(', ');
+      const textNote = memLocs5.length > 0 ? getPtaTextNote(l) : parsedNote5.text;
+      return [l.item_code, l.item_name, l.warehouse_code||'', l.qty_system, l.qty_counted!=null?l.qty_counted:'', diff, pct, containerDetail, textNote||''];
     };
   } else {
     hdrs = ['Mã HH','Tên hóa chất','Kho','Tồn HT (kg)','Thực tế (kg)','Chênh lệch (kg)','Chênh lệch (%)','Ghi chú'];
